@@ -1,0 +1,25 @@
+{# templates/errors/error.html —— 统一错误页（400 / 404 / 405 / 500） #}
+{% extends 'base.html' %}
+
+{% block title %}{{ code }} · {{ site.name }}{% endblock %}
+{% block body_class %}error-body{% endblock %}
+
+{% block content %}
+<section class="error-page">
+  <div class="error-inner">
+    <div class="error-reel"><i class="bi bi-film"></i></div>
+    <div class="error-code">{{ code }}</div>
+    <h1 class="error-title">{{ title }}</h1>
+    <p class="error-desc">{{ message }}</p>
+    <div class="error-actions">
+      <a class="btn-primary-custom" href="{{ url_for('front.index') }}">
+        <i class="bi bi-house-door"></i> 回到首页
+      </a>
+      <button class="btn-outline-custom" type="button" onclick="history.back()">
+        <i class="bi bi-arrow-left"></i> 返回上一页
+      </button>
+    </div>
+    <p class="error-hint">如果一直出现这个页面，请联系影院前台 {{ site.phone }}。</p>
+  </div>
+</section>
+{% endblock %}

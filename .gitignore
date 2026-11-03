@@ -1,0 +1,15 @@
+# 运行时生成的数据与密钥，不提交
+instance/
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.idea/
+.vscode/
+
+# 工作区临时数据
+.workbuddy/

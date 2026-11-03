@@ -1,0 +1,111 @@
+{# templates/_macros.html —— 公共宏：状态徽标、资源卡片、分页、空状态 #}
+
+{# 订单 / 场次状态徽标：胶囊形，每种状态一种浅底深字配色 #}
+{% macro status_badge(status, text=None) -%}
+  <span class="status-badge status-{{ status }}">{{ text or ORDER_STATUS.get(status, status) }}</span>
+{%- endmacro %}
+
+{# 可用状态徽标：ok 可订 / few 仅剩 / full 已满 #}
+{% macro avail_badge(level, text=None) -%}
+  {% set labels = {'ok': '可订', 'few': '仅剩', 'full': '已满'} %}
+  <span class="avail-badge avail-{{ level }}">{{ text or labels.get(level, level) }}</span>
+{%- endmacro %}
+
+{#
+  资源卡片宏（影厅、小食、活动等）：封面 + 价格标签 + 可用徽标 + 标签胶囊 + 按钮
+  参数：cover 图片名 / title 标题 / subtitle 副标题 / price 价格（元，可空）
+        tags 标签列表 / url 按钮链接 / btn 按钮文字 / badge 可用徽标级别（可空）
+#}
+{% macro item_card(cover, title, subtitle='', price=None, tags=[], url='#',
+                   btn='查看详情', badge=None, badge_text=None) -%}
+  <article class="item-card">
+    <div class="card-cover">
+      <img src="{{ img_url(cover) }}" alt="{{ title }}" loading="lazy">
+      {% if badge %}{{ avail_badge(badge, badge_text) }}{% endif %}
+      {% if price is not none %}<span class="price-tag">¥ {{ price }}</span>{% endif %}
+    </div>
+    <div class="card-body">
+      <h3 class="card-title">{{ title }}</h3>
+      {% if subtitle %}<p class="card-sub">{{ subtitle }}</p>{% endif %}
+      {% if tags %}
+        <div class="card-tags">
+          {% for t in tags %}<span class="tag">{{ t }}</span>{% endfor %}
+        </div>
+      {% endif %}
+      <div class="card-actions">
+        <a class="btn-card btn-card-primary" href="{{ url }}">{{ btn }}</a>
+      </div>
+    </div>
+  </article>
+{%- endmacro %}
+
+{# 影片海报卡片：竖版海报 + 评分角标 + 片名 + 类型/时长标签 + 购票按钮 #}
+{% macro movie_card(m) -%}
+  <article class="item-card movie-card">
+    <a class="card-cover" href="/movies/{{ m.id }}" title="{{ m.title }}">
+      <img src="{{ img_url(m.poster) }}" alt="{{ m.title }} 海报" loading="lazy">
+      <span class="rating-corner"><i class="bi bi-star-fill"></i>{{ m.rating|rating }}</span>
+      {% if m.status == 'COMING' %}
+        {{ avail_badge('full', '即将上映') }}
+      {% else %}
+        {{ avail_badge('ok', '热映中') }}
+      {% endif %}
+    </a>
+    <div class="card-body">
+      <h3 class="card-title">{{ m.title }}</h3>
+      <p class="card-sub">{{ m.title_en }}</p>
+      <div class="card-tags">
+        {% for g in m.genre|split('/') %}<span class="tag">{{ g }}</span>{% endfor %}
+        <span class="tag">{{ m.duration }} 分钟</span>
+      </div>
+      <div class="card-actions">
+        <a class="btn-card btn-card-primary" href="/movies/{{ m.id }}">
+          <i class="bi bi-ticket-perforated"></i> 购票
+        </a>
+        <a class="btn-card btn-card-ghost" href="/movies/{{ m.id }}">详情</a>
+      </div>
+    </div>
+  </article>
+{%- endmacro %}
+
+{# 分页宏：page 当前页 / pages 总页数 / endpoint 视图函数名 / args 需要保留的查询参数 #}
+{% macro pagination(page, pages, endpoint, args={}) -%}
+  {% if pages and pages > 1 %}
+    {% set query = [] %}
+    {% for key, value in args.items() if key != 'page' and value %}
+      {% set _ = query.append(key ~ '=' ~ (value|string|urlencode)) %}
+    {% endfor %}
+    {% set prefix = url_for(endpoint) ~ ('?' ~ query|join('&') ~ '&' if query else '?') %}
+    <nav class="pager" aria-label="分页">
+      {% if page > 1 %}
+        <a href="{{ prefix }}page={{ page - 1 }}"><i class="bi bi-chevron-left"></i></a>
+      {% else %}
+        <span class="disabled"><i class="bi bi-chevron-left"></i></span>
+      {% endif %}
+
+      {% for p in range(1, pages + 1) %}
+        {% if p == page %}
+          <span class="current">{{ p }}</span>
+        {% elif p == 1 or p == pages or (p >= page - 2 and p <= page + 2) %}
+          <a href="{{ prefix }}page={{ p }}">{{ p }}</a>
+        {% elif p == page - 3 or p == page + 3 %}
+          <span class="dots">…</span>
+        {% endif %}
+      {% endfor %}
+
+      {% if page < pages %}
+        <a href="{{ prefix }}page={{ page + 1 }}"><i class="bi bi-chevron-right"></i></a>
+      {% else %}
+        <span class="disabled"><i class="bi bi-chevron-right"></i></span>
+      {% endif %}
+    </nav>
+  {% endif %}
+{%- endmacro %}
+
+{# 空状态：列表无数据时统一展示 #}
+{% macro empty_state(text='这里还没有内容', icon='bi-inbox') -%}
+  <div class="empty-state">
+    <i class="bi {{ icon }}"></i>
+    <p>{{ text }}</p>
+  </div>
+{%- endmacro %}

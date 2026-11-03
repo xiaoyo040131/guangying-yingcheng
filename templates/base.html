@@ -1,0 +1,136 @@
+{# templates/base.html —— 前台母版：导航、flash、内容区、页脚 #}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}光影影城 · 每一帧都值得在大银幕上看{% endblock %}</title>
+
+  {# CSRF 令牌：front.js 里所有 fetch 请求从这里读，放进 X-CSRF-Token 头 #}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
+  <link rel="icon" type="image/png" href="{{ img_url('favicon') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+
+{# ---------------- 吸顶导航 ---------------- #}
+<header class="front-navbar" id="frontNavbar">
+  <div class="nav-inner">
+    <a class="brand" href="{{ url_for('front.index') }}">
+      <span class="brand-icon"><i class="bi {{ site.icon }}"></i></span>
+      <span class="brand-text">
+        <span class="brand-name">{{ site.name }}</span>
+        <span class="brand-en">{{ site.en }}</span>
+      </span>
+    </a>
+
+    <nav class="nav-menu" id="navMenu">
+      {% for item in nav_items %}
+        <div class="nav-item">
+          <a href="{{ item.href }}" class="{{ 'active' if nav_active == item.key }}">{{ item.label }}</a>
+        </div>
+      {% endfor %}
+      <a class="nav-menu-cta" href="/#showing">立即购票</a>
+    </nav>
+
+    <div class="nav-actions">
+      <a class="btn-primary-custom btn-nav" href="/#showing">
+        <i class="bi bi-ticket-perforated"></i><span>在线购票</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" type="button" aria-label="展开导航菜单">
+        <i class="bi bi-list"></i>
+      </button>
+    </div>
+  </div>
+</header>
+
+{# ---------------- flash 提示：右上角浮动，4 秒自动消失 ---------------- #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-wrap" id="flashWrap">
+      {% for category, message in messages %}
+        <div class="flash-item flash-{{ category }}" role="alert">
+          {% if category == 'success' %}
+            <i class="bi bi-check-circle-fill"></i>
+          {% elif category in ('error', 'danger') %}
+            <i class="bi bi-exclamation-octagon-fill"></i>
+          {% elif category == 'warning' %}
+            <i class="bi bi-exclamation-triangle-fill"></i>
+          {% else %}
+            <i class="bi bi-info-circle-fill"></i>
+          {% endif %}
+          <span>{{ message }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+{# ---------------- 页脚：深色四栏 ---------------- #}
+<footer class="site-footer">
+  <div class="container-custom">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="{{ url_for('front.index') }}">
+          <span class="brand-icon"><i class="bi {{ site.icon }}"></i></span>
+          <span class="brand-text">
+            <span class="brand-name">{{ site.name }}</span>
+            <span class="brand-en">{{ site.en }}</span>
+          </span>
+        </a>
+        <p class="footer-slogan">{{ site.slogan }}</p>
+        <p class="footer-desc">四个影厅、456 个座位，从标准厅到 IMAX 巨幕，从情侣座到 VIP 躺椅，光影影城把每一场电影都当作一次首映。</p>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="footer-title">快速链接</h4>
+        <div class="footer-links">
+          <a href="{{ url_for('front.index') }}">首页</a>
+          <a href="/#showing">正在热映</a>
+          <a href="/#halls">影厅与设备</a>
+          <a href="/#gallery">影院环境</a>
+          <a href="/orders">我的订单</a>
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="footer-title">联系我们</h4>
+        <div class="footer-links">
+          <a href="tel:{{ site.phone }}"><i class="bi bi-telephone"></i> {{ site.phone }}</a>
+          <span class="footer-text"><i class="bi bi-geo-alt"></i> {{ site.address }}</span>
+          <span class="footer-text"><i class="bi bi-clock"></i> {{ site.open_time }}</span>
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="footer-title">观影须知</h4>
+        <div class="footer-links">
+          <span class="footer-text"><i class="bi bi-dot"></i> 开场前 30 分钟停止售票</span>
+          <span class="footer-text"><i class="bi bi-dot"></i> 下单后 15 分钟内完成支付</span>
+          <span class="footer-text"><i class="bi bi-dot"></i> 开场前 2 小时可申请退票</span>
+          <span class="footer-text"><i class="bi bi-dot"></i> 凭 8 位取票码自助取票</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span>© {{ current_year }} {{ site.name }} · {{ site.en }}</span>
+      <span class="footer-dot">·</span>
+      <span>课程设计演示项目，数据均为虚构</span>
+    </div>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/front.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

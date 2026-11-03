@@ -1,0 +1,205 @@
+{# templates/front/index.html —— 首页：轮播 / 快捷购票 / 海报墙 / 即将上映 / 影厅 / 环境图集 #}
+{% extends 'base.html' %}
+{% from '_macros.html' import movie_card %}
+
+{% block title %}光影影城 · 每一帧都值得在大银幕上看{% endblock %}
+
+{% block content %}
+
+<h1 class="visually-hidden">光影影城 · 在线选座购票</h1>
+
+{# ---------------- 1. 深色 Hero 轮播 ---------------- #}
+<section class="hero-section">
+  <div id="heroCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="6000">
+    <div class="carousel-indicators">
+      {% for b in banners %}
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="{{ loop.index0 }}"
+                class="{{ 'active' if loop.first }}" aria-label="第 {{ loop.index }} 张"></button>
+      {% endfor %}
+    </div>
+
+    <div class="carousel-inner">
+      {% for b in banners %}
+        <div class="carousel-item {{ 'active' if loop.first }}">
+          <div class="hero-slide" style="background-image:url('{{ img_url(b.img) }}')"></div>
+          <div class="hero-overlay"></div>
+          <div class="hero-caption">
+            <p class="hero-en">{{ b.en }}</p>
+            <h2 class="hero-title">{{ b.title }}</h2>
+            <p class="hero-sub">{{ b.sub }}</p>
+            <a class="btn-primary-custom hero-btn" href="#showing">
+              <i class="bi bi-ticket-perforated"></i> 立即购票
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# ---------------- 2. 浮动快捷购票卡 ---------------- #}
+<section class="search-section">
+  <form class="search-box" id="quickSearchForm" method="get" action="/" data-no-guard>
+    <div class="search-field">
+      <label for="qsMovie"><i class="bi bi-film"></i> 选择影片</label>
+      <select id="qsMovie" name="movie_id">
+        {% for m in showing %}
+          <option value="{{ m.id }}">{{ m.title }}（{{ m.genre }}）</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="search-field">
+      <label for="qsDate"><i class="bi bi-calendar3"></i> 观影日期</label>
+      <select id="qsDate" name="date">
+        {% for d in dates %}
+          <option value="{{ d.date }}">{{ d.label }} {{ d.weekday }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn-primary-custom" type="submit">
+      <i class="bi bi-search"></i> 查场次
+    </button>
+  </form>
+</section>
+
+{# ---------------- 3. 正在热映（竖版海报墙） ---------------- #}
+<section class="section" id="showing">
+  <div class="container-custom">
+    <div class="section-title">
+      <span class="en">Now Showing</span>
+      <h2>正在热映</h2>
+      <div class="line"></div>
+      <p>六部影片、四个影厅、五天场次，挑一个喜欢的位置，把这两个小时交给银幕。</p>
+    </div>
+
+    <div class="poster-wall">
+      {% for m in showing %}
+        {{ movie_card(m) }}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# ---------------- 4. 即将上映（横向卡片） ---------------- #}
+<section class="section section-warm" id="coming">
+  <div class="container-custom">
+    <div class="section-title">
+      <span class="en">Coming Soon</span>
+      <h2>即将上映</h2>
+      <div class="line"></div>
+      <p>先记下日子，等它亮起第一帧。</p>
+    </div>
+
+    <div class="coming-row">
+      {% for m in coming %}
+        <a class="coming-card" href="/movies/{{ m.id }}">
+          <img class="coming-poster" src="{{ img_url(m.poster) }}" alt="{{ m.title }} 海报" loading="lazy">
+          <div class="coming-info">
+            <h3>{{ m.title }}</h3>
+            <span class="en">{{ m.title_en }}</span>
+            <span class="coming-date">
+              <i class="bi bi-calendar-event"></i> {{ m.release_date }} 上映
+            </span>
+            <div class="card-tags">
+              {% for g in m.genre|split('/') %}<span class="tag">{{ g }}</span>{% endfor %}
+              <span class="tag">{{ m.duration }} 分钟</span>
+            </div>
+            <p class="coming-desc">{{ m.synopsis }}</p>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# ---------------- 5. 影厅介绍 ---------------- #}
+<section class="section" id="halls">
+  <div class="container-custom">
+    <div class="section-title">
+      <span class="en">Our Halls</span>
+      <h2>四个影厅，四种看法</h2>
+      <div class="line"></div>
+      <p>标准厅的沉浸声场，IMAX 的巨幕压迫感，情侣厅的双人沙发，VIP 厅的真皮躺椅。</p>
+    </div>
+
+    <div class="hall-grid">
+      {% for h in halls %}
+        <article class="hall-card">
+          <div class="hall-cover">
+            <img src="{{ img_url(h.cover) }}" alt="{{ h.name }}" loading="lazy">
+          </div>
+          <div class="hall-body">
+            <span class="hall-type"><i class="bi {{ h.icon }}"></i>{{ h.type_label }}</span>
+            <h3>{{ h.name }}</h3>
+            <p>{{ h.desc }}</p>
+            <ul class="hall-specs">
+              {% for s in h.specs %}<li>{{ s }}</li>{% endfor %}
+            </ul>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# ---------------- 6. 特色服务（六列） ---------------- #}
+<section class="section section-warm section-tight" id="features">
+  <div class="container-custom">
+    <div class="feature-grid">
+      {% for f in features %}
+        <div class="feature-item">
+          <div class="feature-icon"><i class="bi {{ f.icon }}"></i></div>
+          <h4>{{ f.title }}</h4>
+          <p>{{ f.desc }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# ---------------- 7. 观影服务（cover-5 ~ cover-8） ---------------- #}
+<section class="section" id="services">
+  <div class="container-custom">
+    <div class="section-title">
+      <span class="en">Guest Services</span>
+      <h2>从取票到入场</h2>
+      <div class="line"></div>
+      <p>凭 8 位取票码自助取票，开场前 15 分钟到店，时间刚刚好。</p>
+    </div>
+
+    <div class="service-grid">
+      {% for s in services %}
+        <div class="service-card">
+          <img src="{{ img_url(s.img) }}" alt="{{ s.title }}" loading="lazy">
+          <div class="service-body">
+            <h3>{{ s.title }}</h3>
+            <p>{{ s.desc }}</p>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# ---------------- 8. 影院环境图集 ---------------- #}
+<section class="section section-warm" id="gallery">
+  <div class="container-custom">
+    <div class="section-title">
+      <span class="en">Cinema Gallery</span>
+      <h2>影院环境</h2>
+      <div class="line"></div>
+      <p>灯亮之前，影院本身就是一场布景。</p>
+    </div>
+
+    <div class="gallery-grid">
+      {% for g in gallery %}
+        <figure class="gallery-item">
+          <img src="{{ img_url(g.img) }}" alt="{{ g.caption }}" loading="lazy">
+          <figcaption class="gallery-caption">{{ g.caption }}</figcaption>
+        </figure>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{% endblock %}
