@@ -1,0 +1,127 @@
+{# templates/front/movie_detail.html —— 影片详情：海报 / 信息 / 日期标签 / 场次卡片 #}
+{% extends 'base.html' %}
+{% from '_macros.html' import empty_state, status_badge %}
+
+{% block title %}{{ movie.title }} · 光影影城{% endblock %}
+
+{% block content %}
+
+{# ---------------- 1. 深色影片头部 ---------------- #}
+<section class="movie-hero">
+  <div class="movie-hero-bg" style="background-image:url('{{ img_url(movie.poster) }}')"></div>
+  <div class="container-custom">
+    <nav class="breadcrumb-custom" aria-label="面包屑">
+      <a href="{{ url_for('front.index') }}">首页</a>
+      <i class="bi bi-chevron-right"></i>
+      <a href="{{ url_for('front.index') }}#showing">影片</a>
+      <i class="bi bi-chevron-right"></i>
+      <span class="current">{{ movie.title }}</span>
+    </nav>
+
+    <div class="movie-detail-grid">
+      <img class="movie-poster" src="{{ img_url(movie.poster) }}"
+           alt="{{ movie.title }} 海报">
+
+      <div class="movie-info">
+        <div class="movie-head-row">
+          <h1 class="movie-title">{{ movie.title }}</h1>
+          {{ status_badge(movie.status, MOVIE_STATUS.get(movie.status, movie.status)) }}
+        </div>
+        <p class="movie-title-en">{{ movie.title_en }}</p>
+
+        <div class="movie-rating">
+          <span class="num">{{ movie.rating|rating }}</span>
+          <span class="stars" aria-label="评分 {{ movie.rating|rating }} 分">
+            {% for i in range(1, 6) %}
+              {% if i <= full_stars %}
+                <i class="bi bi-star-fill"></i>
+              {% elif i == full_stars + 1 and half_star %}
+                <i class="bi bi-star-half"></i>
+              {% else %}
+                <i class="bi bi-star"></i>
+              {% endif %}
+            {% endfor %}
+          </span>
+          <span class="tip">
+            {% if movie.status == 'COMING' %}即将上映 · 已可提前选座{% else %}正在热映 · 观众评分{% endif %}
+          </span>
+        </div>
+
+        <div class="movie-meta">
+          <div><span>类型</span>{{ movie.genre }}</div>
+          <div><span>片长</span>{{ movie.duration }} 分钟</div>
+          <div><span>导演</span>{{ movie.director }}</div>
+          <div><span>主演</span>{{ movie.actors }}</div>
+          <div><span>上映</span>{{ movie.release_date }}</div>
+        </div>
+
+        <p class="movie-synopsis">{{ movie.synopsis }}</p>
+
+        <div class="movie-hero-actions">
+          <a class="btn-primary-custom" href="#showtimes">
+            <i class="bi bi-ticket-perforated"></i> 选座购票
+          </a>
+          <a class="btn-outline-custom btn-on-dark" href="{{ url_for('front.orders') }}">
+            <i class="bi bi-receipt"></i> 我的订单
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ---------------- 2. 日期标签 + 当天场次 ---------------- #}
+<section class="section" id="showtimes">
+  <div class="container-custom">
+    <div class="section-title left">
+      <span class="en">Showtimes</span>
+      <h2>选择场次</h2>
+      <div class="line"></div>
+      <p>今天起 5 天内的场次可售；开场前 30 分钟停止售票，余票少于 10 张显示“紧张”。</p>
+    </div>
+
+    <div class="date-tabs">
+      {% for d in dates %}
+        <a class="date-tab {{ 'active' if d.date == show_date }}"
+           href="{{ url_for('front.movie_detail', movie_id=movie.id, date=d.date) }}">
+          <span class="d">{{ d.label }}</span>
+          <span class="w">{{ d.weekday }}</span>
+        </a>
+      {% endfor %}
+    </div>
+
+    {% if shows %}
+      <div class="showtime-grid">
+        {% for s in shows %}
+          {% set sold_out = s.remaining <= 0 %}
+          {% set disabled = s.is_stopped or sold_out %}
+          <a class="show-card {{ 'disabled' if disabled }}"
+             href="{{ url_for('front.show_seats', show_id=s.id) if not disabled else '#' }}"
+             {% if disabled %}tabindex="-1" aria-disabled="true"{% endif %}>
+            <div class="show-time">
+              {{ s.start_time }} <small>— {{ s.end_time }}</small>
+              {% if s.is_past %}
+                <span class="show-flag">已开场</span>
+              {% elif s.is_stopped %}
+                <span class="show-flag">停售</span>
+              {% elif sold_out %}
+                <span class="show-flag">已满</span>
+              {% elif s.remaining < 10 %}
+                <span class="show-flag">紧张</span>
+              {% endif %}
+            </div>
+            <p class="show-meta">{{ s.hall_name }} · {{ s.lang }}</p>
+            <div class="show-foot">
+              <span class="show-price">¥{{ s.base_price|yuan }} <small>起</small></span>
+              <span class="show-left {{ 'few' if s.remaining < 10 }}">余票 {{ s.remaining }}</span>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      {{ empty_state('这一天还没有排片，换个日期看看吧', 'bi-calendar-x') }}
+    {% endif %}
+  </div>
+</section>
+
+{% endblock %}

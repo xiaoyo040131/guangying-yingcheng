@@ -1,0 +1,144 @@
+{# templates/front/pay.html —— 支付页：15 分钟倒计时 + 订单明细 + 模拟支付 #}
+{% extends 'base.html' %}
+{% from '_macros.html' import status_badge %}
+
+{% block title %}订单支付 · 光影影城{% endblock %}
+
+{% block content %}
+<section class="pay-wrap">
+  <div class="container-custom">
+    <div class="pay-card">
+
+      <nav class="breadcrumb-custom" aria-label="面包屑">
+        <a href="{{ url_for('front.index') }}">首页</a>
+        <i class="bi bi-chevron-right"></i>
+        <a href="{{ url_for('front.orders') }}">我的订单</a>
+        <i class="bi bi-chevron-right"></i>
+        <span class="current">订单支付</span>
+      </nav>
+
+      <div class="pay-head">
+        <div>
+          <h1>
+            {% if order.status == 'UNPAID' %}等待支付
+            {% elif order.status in ('PAID', 'USED') %}支付完成
+            {% elif order.status == 'EXPIRED' %}订单已超时
+            {% elif order.status == 'CANCELLED' %}订单已取消
+            {% elif order.status == 'REFUNDED' %}订单已退票
+            {% else %}订单详情{% endif %}
+          </h1>
+          <div class="order-no">订单号 {{ order.order_no }} · 下单于 {{ order.created_at }}</div>
+        </div>
+        {{ status_badge(order.status) }}
+      </div>
+
+      {# ---------------- 倒计时 / 状态提示 ---------------- #}
+      {% if order.status == 'UNPAID' and flags.can_pay %}
+        <div class="countdown-box">
+          <div class="countdown-label">支付剩余时间</div>
+          <div class="countdown" id="payCountdown" data-deadline="{{ order.pay_deadline }}">--:--</div>
+          <p class="form-hint" id="countdownNote">
+            座位已为你保留，超过 {{ order.pay_deadline }} 未支付将自动取消并释放座位。
+          </p>
+        </div>
+      {% elif order.status == 'EXPIRED' %}
+        <p class="notice-line">
+          <i class="bi bi-exclamation-octagon"></i>
+          订单超时未支付，座位已释放。如需观影请重新选座下单。
+        </p>
+      {% elif order.status == 'CANCELLED' %}
+        <p class="notice-line">
+          <i class="bi bi-x-circle"></i> 订单已取消，座位已释放。
+        </p>
+      {% elif order.status == 'REFUNDED' %}
+        <p class="notice-line">
+          <i class="bi bi-arrow-counterclockwise"></i> 该订单已退票，座位已释放，票款将原路退回。
+        </p>
+      {% elif order.status in ('PAID', 'USED') %}
+        <p class="notice-line notice-ok">
+          <i class="bi bi-check-circle"></i>
+          该订单已支付，取票码 <strong>{{ order.ticket_code }}</strong>，凭码到自助机取票。
+        </p>
+      {% endif %}
+
+      {# ---------------- 订单明细 ---------------- #}
+      <div class="detail-list">
+        <div class="detail-row">
+          <span class="k">影片</span>
+          <span class="v">{{ order.title }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="k">场次</span>
+          <span class="v">{{ order.show_date }} {{ order.start_time }} · {{ order.hall_name }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="k">观众</span>
+          <span class="v">{{ order.customer_name }} · {{ order.phone|mask_phone }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="k">座位（{{ order.seat_count }} 个）</span>
+          <span class="v">
+            {% for s in seats %}{{ s.row_no }}排{{ s.col_no }}座{% if not loop.last %}、{% endif %}{% endfor %}
+          </span>
+        </div>
+        {% if order.status == 'UNPAID' %}
+          <div class="detail-row">
+            <span class="k">支付截止</span>
+            <span class="v">{{ order.pay_deadline }}</span>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="detail-list">
+        {% for s in seats %}
+          <div class="detail-row">
+            <span class="k">{{ s.row_no }}排{{ s.col_no }}座 · {{ SEAT_TYPE.get(s.seat_type, s.seat_type) }}</span>
+            <span class="v">¥{{ s.price|yuan }}</span>
+          </div>
+        {% endfor %}
+        <div class="detail-row total">
+          <span class="k">合计</span>
+          <span class="v">¥{{ order.total_price|yuan }}</span>
+        </div>
+      </div>
+
+      {# ---------------- 操作按钮 ---------------- #}
+      {% if flags.can_pay %}
+        <form method="post" action="{{ url_for('front.order_pay_do', order_no=order.order_no) }}" id="payForm">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <div class="pay-actions">
+            <button type="submit" class="btn-primary-custom">
+              <i class="bi bi-credit-card-2-front"></i> 模拟支付 ¥{{ order.total_price|yuan }} 元
+            </button>
+            <a class="btn-outline-custom" href="{{ url_for('front.orders') }}">稍后再付</a>
+          </div>
+        </form>
+
+        {% if flags.can_cancel %}
+          <form method="post" action="{{ url_for('front.order_cancel', order_no=order.order_no) }}"
+                data-confirm="确定要取消这笔订单吗？座位会立即释放。">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <div class="pay-actions pay-actions-sub">
+              <button type="submit" class="link-subtle">不看了，取消订单</button>
+            </div>
+          </form>
+        {% endif %}
+      {% else %}
+        <div class="pay-actions">
+          {% if order.status in ('PAID', 'USED') %}
+            <a class="btn-primary-custom" href="{{ url_for('front.order_success', order_no=order.order_no) }}">
+              <i class="bi bi-ticket-perforated"></i> 查看取票码
+            </a>
+          {% else %}
+            <a class="btn-primary-custom" href="{{ url_for('front.index') }}#showing">
+              <i class="bi bi-film"></i> 重新选片
+            </a>
+          {% endif %}
+          <a class="btn-outline-custom" href="{{ url_for('front.orders') }}">我的订单</a>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</section>
+{% endblock %}

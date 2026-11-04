@@ -1,0 +1,80 @@
+{# templates/front/success.html —— 支付成功页：8 位取票码（仅本浏览器可看） #}
+{% extends 'base.html' %}
+{% from '_macros.html' import status_badge %}
+
+{% block title %}支付成功 · 光影影城{% endblock %}
+
+{% block content %}
+<section class="pay-wrap">
+  <div class="container-custom">
+    <div class="pay-card">
+
+      {% if order.status in ('PAID', 'USED') %}
+        <div class="success-icon"><i class="bi bi-check-lg"></i></div>
+        <h1 class="success-title">支付成功</h1>
+        <p class="success-sub">座位已锁定，请凭下面的取票码在影院自助机取票</p>
+
+        <div class="ticket-code">{{ order.ticket_code }}</div>
+        <p class="ticket-tip">
+          <i class="bi bi-info-circle"></i>
+          8 位取票码仅在本浏览器可见，建议截图保存；也可用手机号 + 姓名在“我的订单”再次查询。
+        </p>
+
+        <div class="detail-list">
+          <div class="detail-row">
+            <span class="k">影片</span>
+            <span class="v">{{ order.title }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="k">场次</span>
+            <span class="v">{{ order.show_date }} {{ order.start_time }} · {{ order.hall_name }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="k">座位</span>
+            <span class="v">
+              {% for s in seats %}{{ s.row_no }}排{{ s.col_no }}座{% if not loop.last %}、{% endif %}{% endfor %}
+            </span>
+          </div>
+          <div class="detail-row">
+            <span class="k">金额</span>
+            <span class="v">¥{{ order.total_price|yuan }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="k">订单号</span>
+            <span class="v">{{ order.order_no }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="k">状态</span>
+            <span class="v">{{ status_badge(order.status) }}</span>
+          </div>
+        </div>
+
+        <div class="pay-actions">
+          <a class="btn-primary-custom" href="{{ url_for('front.orders') }}">
+            <i class="bi bi-receipt"></i> 我的订单
+          </a>
+          <a class="btn-outline-custom" href="{{ url_for('front.index') }}">
+            <i class="bi bi-house"></i> 返回首页
+          </a>
+        </div>
+      {% else %}
+        <h1 class="success-title">取票码不可用</h1>
+        <p class="success-sub">
+          该订单当前状态为「{{ ORDER_STATUS.get(order.status, order.status) }}」，取票码已失效。
+        </p>
+        <p class="notice-line">
+          <i class="bi bi-exclamation-octagon"></i>
+          {% if order.status == 'REFUNDED' %}这笔订单已退票，座位已释放，票款将原路退回。
+          {% elif order.status in ('CANCELLED', 'EXPIRED') %}这笔订单已取消或超时，座位已释放，如需观影请重新选座。
+          {% else %}请到“我的订单”查看最新状态。{% endif %}
+        </p>
+        <div class="pay-actions">
+          <a class="btn-primary-custom" href="{{ url_for('front.orders') }}">我的订单</a>
+          <a class="btn-outline-custom" href="{{ url_for('front.index') }}">返回首页</a>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</section>
+{% endblock %}

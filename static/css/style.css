@@ -2141,3 +2141,208 @@ textarea.form-control-custom { height: auto; padding: .7rem .95rem; line-height:
   .stat-grid { grid-template-columns: 1fr; }
   .hero-title { font-size: 1.9rem; }
 }
+
+/* ============================================================
+   28. 第 4 步补充：影片详情 / 选座 / 支付 / 我的订单
+   （只补充此前没有定义的少量类，其余全部复用上面的组件样式）
+   ============================================================ */
+
+/* ---- 影片详情头部 ---- */
+.movie-hero .breadcrumb-custom { margin: 0 0 1.4rem; color: rgba(255, 255, 255, .5); }
+.movie-hero .breadcrumb-custom a { color: rgba(255, 255, 255, .55); }
+.movie-hero .breadcrumb-custom a:hover { color: var(--accent); }
+.movie-hero .breadcrumb-custom .current { color: var(--accent); }
+.movie-head-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .8rem;
+  margin-bottom: .2rem;
+}
+.movie-head-row .movie-title { margin: 0; }
+.movie-hero-actions { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 1.7rem; }
+.btn-on-dark {
+  border-color: rgba(255, 255, 255, .38);
+  color: rgba(255, 255, 255, .86);
+  background: transparent;
+}
+.btn-on-dark:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255, 255, 255, .06);
+}
+
+/* ---- 选座页 ---- */
+.page-seat .site-footer { display: none; }
+.seat-en {
+  margin: 0 0 .5rem;
+  font-size: .7rem;
+  letter-spacing: .42em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.seat-map-scroll {
+  width: 100%;
+  overflow-x: auto;
+  padding: .4rem 0 1rem;
+  -webkit-overflow-scrolling: touch;
+}
+.seat-map-scroll .seat-map { min-width: max-content; margin: 0 auto; }
+.seat-stats {
+  margin: .9rem 0 0;
+  text-align: center;
+  font-size: .76rem;
+  letter-spacing: .04em;
+  color: rgba(255, 255, 255, .42);
+}
+.seat-alert {
+  min-height: 1.3rem;
+  margin: .55rem auto 0;
+  text-align: center;
+  font-size: .82rem;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.seat-alert.show { opacity: 1; }
+.legend-dot.locked {
+  background: #2B303B;
+  border: 1px dashed rgba(255, 255, 255, .45);
+}
+.seat-price-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .15rem 1rem;
+  max-width: 400px;
+  font-size: .74rem;
+  color: rgba(255, 255, 255, .55);
+}
+.seat-price-lines .quote-line { white-space: nowrap; }
+.seat-bar .btn-primary-custom { padding: .62rem 1.25rem; font-size: .88rem; }
+
+/* 下单弹窗 */
+.modal-content {
+  border: none;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow-strong);
+}
+.modal-header { padding: 1.05rem 1.3rem; border-bottom: 1px solid var(--border-light); }
+.modal-title { font-family: var(--font-serif); font-size: 1.05rem; letter-spacing: .08em; }
+.modal-body { padding: 1.2rem 1.3rem; }
+.modal-footer { padding: .9rem 1.3rem; border-top: 1px solid var(--border-light); gap: .6rem; }
+.modal-show {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  padding: .85rem 1rem;
+  border-radius: 10px;
+  background: var(--bg-warm);
+  font-size: .84rem;
+}
+.modal-show strong { font-family: var(--font-serif); font-size: .96rem; }
+.modal-show span { font-size: .78rem; color: var(--text-muted); }
+.modal-seats { margin: .9rem 0; font-size: .84rem; color: var(--text-muted); }
+.modal-seats #modalSeats { color: var(--text-dark); font-weight: 600; }
+
+/* ---- 支付 / 成功页 ---- */
+.notice-line {
+  display: flex;
+  align-items: flex-start;
+  gap: .45rem;
+  margin: 0 0 1.3rem;
+  padding: .8rem 1rem;
+  border-radius: 10px;
+  background: var(--bg-warm);
+  color: var(--primary-dark);
+  font-size: .86rem;
+  line-height: 1.7;
+}
+.notice-line.notice-ok { background: #ECFDF5; color: #065F46; }
+.link-subtle {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: .82rem;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.link-subtle:hover { color: var(--primary); }
+.pay-actions-sub { margin-top: .7rem; }
+.success-title {
+  margin: 0 0 .4rem;
+  text-align: center;
+  font-size: 1.7rem;
+  letter-spacing: .14em;
+}
+.success-sub {
+  margin: 0 0 .4rem;
+  text-align: center;
+  font-size: .88rem;
+  color: var(--text-muted);
+}
+.ticket-tip {
+  margin: 0 0 1.6rem;
+  text-align: center;
+  font-size: .78rem;
+  line-height: 1.9;
+  color: var(--text-muted);
+}
+
+/* ---- 我的订单 ---- */
+.query-card {
+  max-width: 780px;
+  margin: 0 auto 1.9rem;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+}
+.query-card .field { flex: 1 1 200px; }
+.result-count {
+  max-width: 980px;
+  margin: 0 auto 1rem;
+  font-size: .82rem;
+  letter-spacing: .06em;
+  color: var(--text-muted);
+}
+.order-card { max-width: 980px; margin-left: auto; margin-right: auto; }
+.order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .4rem;
+}
+.order-actions form { display: contents; }
+.order-actions .btn-card {
+  flex: 0 0 auto;
+  padding: .34rem .85rem;
+  font-size: .78rem;
+}
+.ticket-inline {
+  margin-top: .35rem !important;
+  color: var(--text-dark) !important;
+}
+.ticket-inline strong {
+  font-family: var(--font-mono);
+  font-size: .95rem;
+  letter-spacing: .12em;
+  color: var(--primary-dark);
+}
+.deadline-inline { margin-top: .35rem !important; color: #B45309 !important; }
+
+@media (max-width: 768px) {
+  .seat-price-lines { display: none; }
+  .seat-chips { width: 100%; max-height: 64px; overflow-y: auto; }
+  .seat-bar-inner { padding: 0 14px; }
+  .seat-stats { font-size: .72rem; }
+  .query-card { padding: 1.1rem 1.1rem; }
+  .query-card .field { flex: 1 1 100%; }
+  .query-card .btn-primary-custom { width: 100%; }
+  .movie-hero-actions .btn-primary-custom,
+  .movie-hero-actions .btn-outline-custom { flex: 1 1 auto; text-align: center; }
+}

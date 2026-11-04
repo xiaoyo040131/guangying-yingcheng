@@ -1,0 +1,163 @@
+{# templates/front/seats.html —— 核心页：深色选座（银幕 / 座位图 / 底部结算栏 / 下单弹窗） #}
+{% extends 'base.html' %}
+
+{% block title %}{{ show.title }} 选座 · 光影影城{% endblock %}
+{% block body_class %}page-seat{% endblock %}
+
+{% block content %}
+
+<section class="seat-page">
+  <div class="container-custom">
+
+    {# ---------------- 1. 场次信息 ---------------- #}
+    <div class="seat-head">
+      <p class="seat-en">CHOOSE YOUR SEAT</p>
+      <h1 class="movie-name">{{ show.title }}</h1>
+      <p class="show-info">
+        {{ show.show_date }} {{ show.start_time }}–{{ show.end_time }}
+        · {{ show.hall_name }}
+        · 基础票价 ¥{{ show.base_price|yuan }}
+        · 普通座同价 / 情侣座 +5 / VIP 座 +20
+      </p>
+    </div>
+
+    {# ---------------- 2. 弧形银幕 ---------------- #}
+    <div class="screen-wrap">
+      <div class="screen-arc" aria-hidden="true"></div>
+      <div class="screen-label">SCREEN</div>
+    </div>
+
+    {# ---------------- 3. 座位图 ---------------- #}
+    <div class="seat-map-scroll">
+      <div class="seat-map" id="seatMap"
+           data-show-id="{{ show.id }}"
+           data-max="{{ max_seats }}">
+        {% for row in rows %}
+          <div class="seat-row">
+            <span class="row-label">{{ row.row_no }}</span>
+
+            {% for cell in row.cells %}
+              {% if cell.kind == 'aisle' %}
+                <span class="seat-aisle" aria-hidden="true"></span>
+              {% elif cell.status == 'disabled' %}
+                <span class="seat seat-disabled" aria-hidden="true"></span>
+              {% elif cell.status == 'sold' %}
+                <button type="button" class="seat seat-{{ cell.seat_type|lower }} seat-sold"
+                        disabled aria-label="{{ cell.label }} 已售"></button>
+              {% elif cell.status == 'locked' %}
+                <button type="button" class="seat seat-{{ cell.seat_type|lower }} seat-locked"
+                        disabled aria-label="{{ cell.label }} 锁定中">
+                  <i class="bi bi-lock-fill"></i>
+                </button>
+              {% else %}
+                <button type="button" class="seat seat-{{ cell.seat_type|lower }}"
+                        data-seat-id="{{ cell.id }}"
+                        data-label="{{ cell.label }}"
+                        data-type="{{ cell.seat_type }}"
+                        data-partner="{{ cell.partner_id or '' }}"
+                        data-selected="{{ '1' if cell.id in selected_ids else '0' }}"
+                        aria-pressed="false"
+                        aria-label="{{ cell.label }} {{ cell.seat_type_text }}"
+                        title="{{ cell.label }} · {{ cell.seat_type_text }}"></button>
+              {% endif %}
+            {% endfor %}
+
+            <span class="row-label">{{ row.row_no }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ---------------- 4. 图例与统计 ---------------- #}
+    <div class="seat-legend">
+      <span class="legend-item"><span class="legend-dot normal"></span>普通座</span>
+      <span class="legend-item"><span class="legend-dot couple"></span>情侣座（需成对）</span>
+      <span class="legend-item"><span class="legend-dot vip"></span>VIP 座</span>
+      <span class="legend-item"><span class="legend-dot sold"></span>已售</span>
+      <span class="legend-item"><span class="legend-dot locked"></span>锁定中</span>
+      <span class="legend-item"><span class="legend-dot selected"></span>已选</span>
+    </div>
+
+    <p class="seat-stats">
+      共 {{ stats.total }} 个座位 · 可选 {{ stats.free }} · 已售 {{ stats.sold }} · 锁定中 {{ stats.locked }}
+      {% if has_couple %} · 情侣座需成对选择{% endif %}
+    </p>
+
+    <p class="seat-alert" id="seatNotice" role="status" aria-live="polite"></p>
+  </div>
+</section>
+
+{# ---------------- 5. 底部浮动结算栏 ---------------- #}
+<div class="seat-bar" id="seatBar">
+  <div class="seat-bar-inner">
+    <div class="seat-chips" id="seatChips">
+      <span class="chip-empty" id="chipEmpty">还没有选座，点一下座位开始</span>
+    </div>
+
+    <div class="seat-price-lines" id="quoteLines"></div>
+
+    <div class="seat-summary">
+      <div class="seat-total"><span id="quoteTotal">0.00</span> <small>元</small></div>
+      <button class="btn-primary-custom" id="confirmSeats" type="button"
+              data-bs-toggle="modal" data-bs-target="#orderModal" disabled>
+        <i class="bi bi-check2-circle"></i> 确认选座
+      </button>
+    </div>
+  </div>
+</div>
+
+{# ---------------- 6. 确认订单弹窗（手机号 + 姓名） ---------------- #}
+<div class="modal fade" id="orderModal" tabindex="-1" aria-labelledby="orderModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('front.order_new') }}" id="orderForm">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <input type="hidden" name="show_id" value="{{ show.id }}">
+        <input type="hidden" name="seat_ids" id="seatIdsInput"
+               value="{{ selected_ids|join(',') }}">
+
+        <div class="modal-header">
+          <h5 class="modal-title" id="orderModalTitle">确认订单</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-show">
+            <strong>{{ show.title }}</strong>
+            <span>{{ show.show_date }} {{ show.start_time }} · {{ show.hall_name }}</span>
+          </div>
+
+          <p class="modal-seats">已选座位：<span id="modalSeats">尚未选择</span></p>
+
+          <div class="form-grid">
+            <div>
+              <label class="form-label-custom" for="orderPhone">手机号</label>
+              <input class="form-control-custom" id="orderPhone" name="phone" type="tel"
+                     value="{{ form_phone }}" required inputmode="numeric" maxlength="11"
+                     pattern="1[3-9][0-9]{9}" placeholder="11 位手机号，用于查询订单">
+            </div>
+            <div>
+              <label class="form-label-custom" for="orderName">姓名</label>
+              <input class="form-control-custom" id="orderName" name="name" type="text"
+                     value="{{ form_name }}" required minlength="2" maxlength="20"
+                     placeholder="与取票时一致的姓名">
+            </div>
+          </div>
+
+          <p class="form-hint">
+            下单后座位为你保留 15 分钟；支付成功后生成 8 位取票码，凭码到自助机取票。
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-outline-custom" data-bs-dismiss="modal">再看看</button>
+          <button type="submit" class="btn-primary-custom">
+            <i class="bi bi-credit-card"></i> 提交订单
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

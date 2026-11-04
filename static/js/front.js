@@ -7,8 +7,8 @@
  * 4. 删除 / 取消等操作的二次确认
  * 5. 日期联动（开始日期不早于今天，结束日期不早于开始日期，并提示共 N 晚 / N 小时）
  * 6. 首页快捷购票：选影片 + 选日期 -> 跳到影片详情页
- * 7. 支付倒计时（第 4 步使用）
- * 8. 选座 / 实时报价的初始化入口（第 4 步填充实现；找不到对应元素直接返回）
+ * 7. 支付倒计时（归零后禁用支付并刷新，由后端判定已超时）
+ * 8. 选座：点选 / 取消、情侣座成对、最多 4 座、底部结算栏、fetch 实时报价
  *
  * 约定：所有写请求都要带 CSRF 令牌（从 <meta name="csrf-token"> 读取）。
  */
@@ -244,7 +244,8 @@
 
   // ---------------- 7. 支付倒计时 ----------------
   // 元素：<span id="payCountdown" data-deadline="2026-11-03 22:30:00">
-  // 后端以数据库时间为准，这里只做展示；超时后刷新页面由后端判定"已超时"
+  // 后端以数据库时间为准，这里只做展示；归零后禁用支付按钮并刷新页面，
+  // 由后端（R5 过期结算）把订单改成“已超时”。
   function initCountdown() {
     var el = $('#payCountdown');
     if (!el) { return; }
@@ -255,6 +256,7 @@
     if (isNaN(deadline.getTime())) { return; }
 
     var box = el.closest('.countdown-box') || el;
+    var expired = false;
     var tick = function () {
       var left = Math.floor((deadline.getTime() - Date.now()) / 1000);
       if (left <= 0) {
@@ -262,8 +264,15 @@
         el.classList.add('urgent');
         if (box) { box.classList.add('expired'); }
         var note = $('#countdownNote');
-        if (note) { note.textContent = '支付时间已到，订单已自动取消，请重新选座。'; }
+        if (note) { note.textContent = '支付时间已到，订单已自动取消，正在刷新…'; }
+        var payBtn = $('#payForm button[type="submit"]');
+        if (payBtn) { payBtn.disabled = true; }
         clearInterval(timer);
+        if (!expired) {
+          expired = true;
+          // 刷新后由后端展示“已超时”，避免页面还停留在可支付状态
+          setTimeout(function () { window.location.reload(); }, 2500);
+        }
         return;
       }
       var m = Math.floor(left / 60);
@@ -275,18 +284,202 @@
     tick();
   }
 
-  // ---------------- 8. 选座 / 实时报价（第 4 步填充） ----------------
-  // 本步只提供空实现：页面上没有对应元素时直接返回，不会报错。
+  // ---------------- 8. 选座 / 实时报价 ----------------
+  // 页面结构：templates/front/seats.html
+  // 规则（前端只做体验，后端 R2 还会再校验一遍）：
+  //   - 每单最多 4 个座位；情侣座必须成对选择（点一个自动带上另一半）
+  //   - 已售 / 锁定中 / 不可售的座位不可点击
+  //   - 价格不在这里算，统一 fetch('/api/quote') 取后端报价
   function initSeatMap() {
     var map = $('#seatMap');
     if (!map) { return; }
-    // 第 4 步实现：点击座位 -> 加入 / 移出已选、更新底部结算栏、调用 /api/quote 实时报价
-  }
 
-  function initQuote() {
-    var box = $('#quoteBox');
-    if (!box) { return; }
-    // 第 4 步实现：选座变化后 fetch('/api/quote') 拉取后端逐座报价
+    var showId = map.getAttribute('data-show-id');
+    var maxSeats = parseInt(map.getAttribute('data-max'), 10) || 4;
+    var chipsBox = $('#seatChips');
+    var linesBox = $('#quoteLines');
+    var totalEl = $('#quoteTotal');
+    var seatInput = $('#seatIdsInput');
+    var modalSeats = $('#modalSeats');
+    var confirmBtn = $('#confirmSeats');
+    var notice = $('#seatNotice');
+
+    var selected = [];          // [{id, label, type, partner}]
+    var buttons = {};           // {seatId: button}
+    var quoteSeq = 0;
+
+    $all('.seat[data-seat-id]', map).forEach(function (btn) {
+      buttons[btn.getAttribute('data-seat-id')] = btn;
+    });
+
+    function infoOf(btn) {
+      return {
+        id: btn.getAttribute('data-seat-id'),
+        label: btn.getAttribute('data-label'),
+        type: btn.getAttribute('data-type'),
+        partner: btn.getAttribute('data-partner') || ''
+      };
+    }
+
+    function indexOf(id) {
+      for (var i = 0; i < selected.length; i++) {
+        if (selected[i].id === String(id)) { return i; }
+      }
+      return -1;
+    }
+
+    function notify(text) {
+      if (!notice) { return; }
+      notice.textContent = text || '';
+      notice.classList.toggle('show', !!text);
+    }
+
+    function renderChips() {
+      if (!chipsBox) { return; }
+      while (chipsBox.firstChild) { chipsBox.removeChild(chipsBox.firstChild); }
+
+      if (!selected.length) {
+        var empty = document.createElement('span');
+        empty.className = 'chip-empty';
+        empty.textContent = '还没有选座，点一下座位开始';
+        chipsBox.appendChild(empty);
+        return;
+      }
+
+      selected.forEach(function (seat) {
+        var chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.appendChild(document.createTextNode(seat.label));
+
+        var remove = document.createElement('button');
+        remove.type = 'button';
+        remove.setAttribute('aria-label', '取消 ' + seat.label);
+        remove.textContent = '×';
+        remove.addEventListener('click', function () { removeSeat(seat.id); });
+        chip.appendChild(remove);
+
+        chipsBox.appendChild(chip);
+      });
+    }
+
+    function renderQuote(data) {
+      if (linesBox) {
+        while (linesBox.firstChild) { linesBox.removeChild(linesBox.firstChild); }
+        if (data && data.items) {
+          data.items.forEach(function (item) {
+            var line = document.createElement('span');
+            line.className = 'quote-line';
+            line.textContent = item.label + ' ' + item.seat_type_text + ' ¥' + item.price_yuan;
+            linesBox.appendChild(line);
+          });
+        }
+      }
+      if (totalEl) {
+        totalEl.textContent = data ? data.total_yuan : '0.00';
+      }
+    }
+
+    function updateSummary() {
+      renderChips();
+
+      var ids = selected.map(function (seat) { return seat.id; });
+      if (seatInput) { seatInput.value = ids.join(','); }
+      if (modalSeats) {
+        modalSeats.textContent = selected.length
+          ? selected.map(function (seat) { return seat.label; }).join('、')
+          : '尚未选择';
+      }
+      if (confirmBtn) { confirmBtn.disabled = selected.length === 0; }
+
+      if (!selected.length) {
+        renderQuote(null);
+        notify('');
+        return;
+      }
+
+      // 后端实时报价（逐座单价 + 合计），前端不自算价格
+      var seq = ++quoteSeq;
+      fetch('/api/quote?show_id=' + encodeURIComponent(showId) +
+            '&seat_ids=' + encodeURIComponent(ids.join(',')))
+        .then(function (resp) { return resp.json(); })
+        .then(function (data) {
+          if (seq !== quoteSeq) { return; }   // 已经又点了一次，丢弃旧结果
+          if (!data.ok) {
+            renderQuote(null);
+            notify(data.message || '报价失败，请重新选座');
+            return;
+          }
+          notify('');
+          renderQuote(data);
+        })
+        .catch(function () {
+          if (seq !== quoteSeq) { return; }
+          notify('网络异常，价格暂时取不到，请稍后再试');
+        });
+    }
+
+    function syncSeats() {
+      Object.keys(buttons).forEach(function (id) {
+        buttons[id].classList.toggle('seat-selected', indexOf(id) >= 0);
+        buttons[id].setAttribute('aria-pressed', indexOf(id) >= 0 ? 'true' : 'false');
+      });
+      updateSummary();
+    }
+
+    function addSeat(btn) {
+      var info = infoOf(btn);
+      if (indexOf(info.id) >= 0) { return; }
+
+      var add = [info];
+      if (info.type === 'COUPLE') {
+        if (!info.partner || !buttons[info.partner]) {
+          notify('这个情侣座的另一半已被选走，不能单独选');
+          return;
+        }
+        add.push(infoOf(buttons[info.partner]));
+      }
+
+      if (selected.length + add.length > maxSeats) {
+        notify('每单最多选择 ' + maxSeats + ' 个座位');
+        return;
+      }
+
+      add.forEach(function (seat) {
+        if (indexOf(seat.id) < 0) { selected.push(seat); }
+      });
+      syncSeats();
+    }
+
+    function removeSeat(id) {
+      var i = indexOf(id);
+      if (i < 0) { return; }
+      var seat = selected[i];
+      selected.splice(i, 1);
+
+      // 情侣座成对移除
+      if (seat.type === 'COUPLE' && seat.partner) {
+        var j = indexOf(seat.partner);
+        if (j >= 0) { selected.splice(j, 1); }
+      }
+      syncSeats();
+    }
+
+    map.addEventListener('click', function (evt) {
+      var btn = evt.target.closest ? evt.target.closest('.seat[data-seat-id]') : null;
+      if (!btn) { return; }
+      if (indexOf(btn.getAttribute('data-seat-id')) >= 0) {
+        removeSeat(btn.getAttribute('data-seat-id'));
+      } else {
+        addSeat(btn);
+      }
+    });
+
+    // 下单失败回填：模板给已选座位打了 data-selected="1"
+    $all('.seat[data-selected="1"]', map).forEach(function (btn) {
+      var info = infoOf(btn);
+      if (indexOf(info.id) < 0) { selected.push(info); }
+    });
+    syncSeats();
   }
 
   // ---------------- 启动 ----------------
@@ -299,6 +492,5 @@
     initQuickSearch();
     initCountdown();
     initSeatMap();
-    initQuote();
   });
 })();
