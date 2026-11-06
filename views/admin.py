@@ -282,7 +282,10 @@ def hall_new():
 @admin_bp.route('/halls/<int:hall_id>/edit', methods=['GET', 'POST'])
 def hall_edit(hall_id):
     """编辑影厅基础信息。"""
-    hall = admin_service.get_hall(hall_id)
+    try:
+        hall = admin_service.get_hall(hall_id)
+    except BizError:
+        abort(404)
 
     if request.method == 'POST':
         try:
@@ -300,7 +303,10 @@ def hall_edit(hall_id):
 @admin_bp.route('/halls/<int:hall_id>/seats')
 def seat_editor(hall_id):
     """座位编辑页：在网格上点选座位类型（普通 / 情侣 / VIP / 无座位）。"""
-    data = admin_service.seat_grid(hall_id)
+    try:
+        data = admin_service.seat_grid(hall_id)
+    except BizError:
+        abort(404)
     return render_template('admin/seat_editor.html', active='halls', g=data)
 
 
