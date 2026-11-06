@@ -1,0 +1,173 @@
+{% extends 'admin/base.html' %}
+{# templates/admin/schedule.html —— 排片表：影厅 × 09:00~24:00 时间轴，场次块按分钟定位 #}
+
+{% block title %}排片表 · 光影影城后台{% endblock %}
+
+{% block head_extra %}
+<style>
+  /* 时间刻度用绝对定位，才能和场次块的百分比坐标严格对齐 */
+  .schedule-head .tl-hour { position: absolute; top: 0; border-left: 1px dashed #E9ECF2; padding-left: .2rem; }
+  .schedule-hall .hint { font-size: .66rem; color: var(--text-muted); }
+  #showInfo { margin: .9rem 0 0; }
+  #showInfo.show { display: flex; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div class="admin-header-left">
+    <span class="admin-header-icon"><i class="bi bi-calendar3-week"></i></span>
+    <div>
+      <h1>排片表</h1>
+      <p class="sub">{{ sv.date_label }} · 共 {{ sv.stats.shows }} 场 ·
+        已售 {{ sv.stats.sold }} / {{ sv.stats.capacity }} 座（{{ sv.stats.pct }}%）</p>
+    </div>
+  </div>
+  <div class="admin-header-actions">
+    <a class="btn-outline-custom" href="{{ url_for('admin.orders') }}">
+      <i class="bi bi-receipt"></i> 订单管理
+    </a>
+  </div>
+</div>
+
+{# 日期标签：今天起 5 天 #}
+<div class="tabs">
+  {% for day in sv.dates %}
+    <a class="tab {{ 'active' if day.date == sv.date }}"
+       href="{{ url_for('admin.schedule', date=day.date) }}">
+      {{ day.label }} {{ day.weekday }}
+    </a>
+  {% endfor %}
+</div>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title"><i class="bi bi-grid-3x3-gap"></i> {{ sv.date_label }}</h2>
+    <span class="panel-sub">点击空白处新建场次 · 点击场次块编辑 / 停售 / 取消</span>
+  </div>
+
+  {% if sv.halls %}
+    <div class="table-wrap" style="border:none;padding:.2rem 0">
+      <div style="min-width:820px">
+        <div class="schedule-head">
+          <div class="schedule-hall"><span class="name">影厅 / 时间</span></div>
+          <div style="position:relative;height:22px">
+            {% for t in sv.ticks %}
+              <span class="tl-hour" style="left:{{ t.left }}%">{{ t.label }}</span>
+            {% endfor %}
+          </div>
+        </div>
+
+        {% for row in sv.halls %}
+          <div class="schedule-row">
+            <div class="schedule-hall">
+              <span class="name">{{ row.hall.name }}</span>
+              <span class="type">{{ HALL_TYPE.get(row.hall.type, row.hall.type) }} ·
+                {{ row.hall.row_count }}×{{ row.hall.col_count }}</span>
+              <span class="hint">{{ row.blocks|length }} 场</span>
+            </div>
+
+            <div class="tl-track" data-hall-id="{{ row.hall.id }}" title="点击空白处新建场次">
+              {% for b in row.blocks %}
+                <button type="button" class="show-block {{ b.status }}"
+                        style="left:{{ b.left }}%;width:{{ b.width }}%"
+                        data-show-id="{{ b.id }}"
+                        data-title="{{ b.title }}"
+                        data-start="{{ b.start_time }}"
+                        data-end="{{ b.end_time }}"
+                        data-price="{{ b.price_yuan }}"
+                        data-status="{{ b.status }}"
+                        data-sold="{{ b.sold }}"
+                        data-capacity="{{ b.capacity }}"
+                        data-pct="{{ b.pct }}">
+                  <span class="b-title">{{ b.title }}</span>
+                  <span class="b-meta">{{ b.start_time }}-{{ b.end_time }} · {{ b.sold }}/{{ b.capacity }}</span>
+                </button>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="schedule-legend">
+      <span><span class="dot" style="background:linear-gradient(135deg,#BE123C,#881337)"></span>在售</span>
+      <span><span class="dot" style="background:linear-gradient(135deg,#6B7280,#374151)"></span>停售</span>
+      <span><span class="dot" style="background:linear-gradient(135deg,#4B5563,#1F2937);opacity:.75"></span>已取消</span>
+      <span><i class="bi bi-info-circle"></i> 结束时间 = 开始 + 片长 + 15 分钟清场；同厅场次不能重叠</span>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <i class="bi bi-building-slash"></i>
+      <p>还没有启用的影厅，请先到「影厅管理」创建影厅</p>
+    </div>
+  {% endif %}
+</section>
+
+{# ---------------- 新建 / 编辑场次弹窗 ---------------- #}
+<div class="modal fade" id="showModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="showModalTitle">新建场次</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="showForm" autocomplete="off">
+          <input type="hidden" id="showId" value="">
+          <input type="hidden" id="showHall" value="">
+          <input type="hidden" id="showDate" value="{{ sv.date }}">
+
+          <div class="form-grid two">
+            <div>
+              <label class="form-label-custom" for="showMovie">影片</label>
+              <select class="form-control-custom" id="showMovie">
+                {% for m in movies %}
+                  <option value="{{ m.id }}" data-duration="{{ m.duration }}">
+                    {{ m.title }}（{{ m.duration }} 分钟）
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="form-label-custom" for="showStart">开始时间</label>
+              <input class="form-control-custom" id="showStart" type="time" step="300" min="09:00" max="23:59">
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label-custom" for="showPrice">票价（元）</label>
+            <input class="form-control-custom" id="showPrice" type="number" min="1" max="300" step="1" value="50">
+            <p class="form-hint">基础票价，VIP 座 +20 元、情侣座每座 +5 元由系统自动加价。</p>
+          </div>
+
+          <p class="form-hint" id="showEndHint">选择影片与开始时间后显示结束时间（含 15 分钟清场）。</p>
+
+          <div class="notice-line" id="showInfo" style="display:none"></div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-xs danger" id="btnCancelShow" style="display:none">
+          <i class="bi bi-x-circle"></i> 取消场次
+        </button>
+        <button type="button" class="btn-xs" id="btnStopShow" style="display:none">
+          <i class="bi bi-pause-circle"></i> 停售
+        </button>
+        <button type="button" class="btn-xs" data-bs-dismiss="modal">关闭</button>
+        <button type="button" class="btn-primary-custom" id="btnSaveShow"
+                style="padding:.5rem 1.4rem;font-size:.86rem">
+          <i class="bi bi-check2"></i> 保存
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# 排片数据交给 admin.js：影片列表、时间轴范围、清场分钟数 #}
+<script type="application/json" id="scheduleData">
+{{ {'date': sv.date, 'startMin': timeline.start, 'span': timeline.span,
+    'clean': timeline.clean, 'openMin': 9 * 60, 'movies': movies}|tojson }}
+</script>
+{% endblock %}

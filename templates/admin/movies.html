@@ -1,0 +1,91 @@
+{% extends 'admin/base.html' %}
+{# templates/admin/movies.html —— 影片管理列表 #}
+{% from '_macros.html' import empty_state %}
+
+{% block title %}影片管理 · 光影影城后台{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div class="admin-header-left">
+    <span class="admin-header-icon"><i class="bi bi-camera-reels"></i></span>
+    <div>
+      <h1>影片管理</h1>
+      <p class="sub">共 {{ movies|length }} 部影片 · 只有热映 / 即将上映的影片可以排片</p>
+    </div>
+  </div>
+  <div class="admin-header-actions">
+    <a class="btn-primary-custom" href="{{ url_for('admin.movie_new') }}">
+      <i class="bi bi-plus-lg"></i> 新增影片
+    </a>
+  </div>
+</div>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title"><i class="bi bi-film"></i> 影片列表</h2>
+    <span class="panel-sub">修改状态后立即生效</span>
+  </div>
+
+  {% if movies %}
+    <div class="table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>影片</th>
+            <th>类型</th>
+            <th>时长</th>
+            <th>评分</th>
+            <th>上映日期</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in movies %}
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:.7rem">
+                  <img src="{{ img_url(m.poster) }}" alt="{{ m.title }} 海报"
+                       style="width:40px;height:56px;object-fit:cover;border-radius:5px;flex:0 0 auto">
+                  <div style="min-width:0">
+                    <div style="font-weight:600">{{ m.title }}</div>
+                    <div style="font-size:.72rem;color:var(--text-muted)">{{ m.title_en }}</div>
+                  </div>
+                </div>
+              </td>
+              <td style="font-size:.8rem">{{ m.genre }}</td>
+              <td class="num">{{ m.duration }} 分钟</td>
+              <td class="num">
+                <i class="bi bi-star-fill" style="color:var(--accent)"></i>
+                {{ m.rating|rating }}
+              </td>
+              <td class="num">{{ m.release_date }}</td>
+              <td>
+                <select class="form-control-custom" data-movie-status="{{ m.id }}"
+                        style="height:34px;font-size:.8rem;width:118px;padding:0 .5rem">
+                  {% for key, label in MOVIE_STATUS.items() %}
+                    <option value="{{ key }}" {{ 'selected' if m.status == key }}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <div class="actions">
+                  <a class="btn-xs" href="{{ url_for('admin.movie_edit', movie_id=m.id) }}">
+                    <i class="bi bi-pencil"></i> 编辑
+                  </a>
+                  <a class="btn-xs" href="{{ url_for('front.movie_detail', movie_id=m.id) }}"
+                     target="_blank" rel="noopener">
+                    <i class="bi bi-box-arrow-up-right"></i> 前台
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state('还没有影片，点右上角「新增影片」开始录入', 'bi-camera-reels') }}
+  {% endif %}
+</section>
+{% endblock %}

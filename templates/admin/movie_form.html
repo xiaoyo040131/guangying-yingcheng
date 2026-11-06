@@ -1,0 +1,149 @@
+{% extends 'admin/base.html' %}
+{# templates/admin/movie_form.html —— 新增 / 编辑影片 #}
+
+{% block title %}{{ '编辑影片' if movie else '新增影片' }} · 光影影城后台{% endblock %}
+
+{% block head_extra %}
+<style>
+  /* 海报选择器：只能从 static/images/ 的 poster-1 ~ poster-8 中选 */
+  .poster-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; }
+  .poster-pick {
+    position: relative; display: block; overflow: hidden; cursor: pointer;
+    border: 2px solid var(--border-light); border-radius: 10px;
+    background: #fff; transition: var(--transition);
+  }
+  .poster-pick img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; display: block; }
+  .poster-pick .pk-name {
+    display: block; padding: .32rem .2rem; text-align: center;
+    font-size: .72rem; color: var(--text-muted);
+  }
+  .poster-pick:hover { transform: translateY(-3px); box-shadow: var(--shadow-medium); }
+  .poster-pick:has(input:checked) { border-color: var(--primary); box-shadow: 0 6px 18px rgba(190, 18, 60, .22); }
+  .poster-pick:has(input:checked) .pk-name { color: var(--primary); font-weight: 600; }
+  @media (max-width: 768px) { .poster-picker { grid-template-columns: repeat(2, 1fr); } }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set cur_poster = form.get('poster') or (movie.poster if movie else 'poster-1') %}
+{% set cur_status = form.get('status') or (movie.status if movie else 'SHOWING') %}
+
+<div class="admin-header">
+  <div class="admin-header-left">
+    <span class="admin-header-icon"><i class="bi bi-camera-reels"></i></span>
+    <div>
+      <h1>{{ '编辑影片' if movie else '新增影片' }}</h1>
+      <p class="sub">{{ movie.title if movie else '填写影片信息，海报请从已生成的 8 张中选择' }}</p>
+    </div>
+  </div>
+  <div class="admin-header-actions">
+    <a class="btn-outline-custom" href="{{ url_for('admin.movies') }}">
+      <i class="bi bi-arrow-left"></i> 返回列表
+    </a>
+  </div>
+</div>
+
+<section class="panel">
+  <form method="post"
+        action="{{ url_for('admin.movie_edit', movie_id=movie.id) if movie else url_for('admin.movie_new') }}"
+        autocomplete="off">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+    <div class="form-grid two">
+      <div>
+        <label class="form-label-custom" for="title">片名</label>
+        <input class="form-control-custom" id="title" name="title" type="text" maxlength="40" required
+               value="{{ form.get('title') or (movie.title if movie else '') }}" placeholder="如：雾港疑云">
+      </div>
+      <div>
+        <label class="form-label-custom" for="title_en">英文名</label>
+        <input class="form-control-custom" id="title_en" name="title_en" type="text" maxlength="80"
+               value="{{ form.get('title_en') or (movie.title_en if movie else '') }}"
+               placeholder="如：Mist Harbor">
+      </div>
+    </div>
+
+    <div style="margin-top:1.2rem">
+      <label class="form-label-custom">海报（poster-1 ~ poster-8）</label>
+      <div class="poster-picker">
+        {% for p in posters %}
+          <label class="poster-pick">
+            <input type="radio" name="poster" value="{{ p }}" class="visually-hidden"
+                   {{ 'checked' if cur_poster == p }}>
+            <img src="{{ img_url(p) }}" alt="{{ p }} 海报" loading="lazy">
+            <span class="pk-name">{{ p }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <p class="form-hint">图片由系统生成工具统一提供，数据库只存不带扩展名的文件名。</p>
+    </div>
+
+    <div class="form-grid three" style="margin-top:1.2rem">
+      <div>
+        <label class="form-label-custom" for="genre">类型</label>
+        <input class="form-control-custom" id="genre" name="genre" type="text" maxlength="30" required
+               value="{{ form.get('genre') or (movie.genre if movie else '') }}"
+               placeholder="如：悬疑/犯罪">
+        <p class="form-hint">多个类型用 / 分隔</p>
+      </div>
+      <div>
+        <label class="form-label-custom" for="duration">片长（分钟）</label>
+        <input class="form-control-custom" id="duration" name="duration" type="number"
+               min="60" max="240" step="1" required
+               value="{{ form.get('duration') or (movie.duration if movie else '') }}">
+      </div>
+      <div>
+        <label class="form-label-custom" for="rating">评分（0 ~ 10）</label>
+        <input class="form-control-custom" id="rating" name="rating" type="number"
+               min="0" max="10" step="0.1" required
+               value="{{ form.get('rating') or (movie.rating|rating if movie else '') }}"
+               placeholder="如：8.6">
+      </div>
+    </div>
+
+    <div class="form-grid two" style="margin-top:1.2rem">
+      <div>
+        <label class="form-label-custom" for="director">导演</label>
+        <input class="form-control-custom" id="director" name="director" type="text" maxlength="50" required
+               value="{{ form.get('director') or (movie.director if movie else '') }}">
+      </div>
+      <div>
+        <label class="form-label-custom" for="actors">主演</label>
+        <input class="form-control-custom" id="actors" name="actors" type="text" maxlength="100" required
+               value="{{ form.get('actors') or (movie.actors if movie else '') }}"
+               placeholder="多位主演用 / 分隔">
+      </div>
+    </div>
+
+    <div class="form-grid two" style="margin-top:1.2rem">
+      <div>
+        <label class="form-label-custom" for="release_date">上映日期</label>
+        <input class="form-control-custom" id="release_date" name="release_date" type="date" required
+               value="{{ form.get('release_date') or (movie.release_date if movie else '') }}">
+      </div>
+      <div>
+        <label class="form-label-custom" for="status">状态</label>
+        <select class="form-control-custom" id="status" name="status">
+          {% for key, label in MOVIE_STATUS.items() %}
+            <option value="{{ key }}" {{ 'selected' if cur_status == key }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="form-hint">只有热映 / 即将上映的影片可以排片售票</p>
+      </div>
+    </div>
+
+    <div style="margin-top:1.2rem">
+      <label class="form-label-custom" for="synopsis">简介</label>
+      <textarea class="form-control-custom" id="synopsis" name="synopsis" rows="5" maxlength="500"
+                placeholder="不超过 500 字">{{ form.get('synopsis') or (movie.synopsis if movie else '') }}</textarea>
+    </div>
+
+    <div class="inline-form" style="margin-top:1.4rem">
+      <button class="btn-primary-custom" type="submit">
+        <i class="bi bi-check2"></i> {{ '保存修改' if movie else '创建影片' }}
+      </button>
+      <a class="btn-outline-custom" href="{{ url_for('admin.movies') }}">取消</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

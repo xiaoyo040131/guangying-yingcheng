@@ -1,0 +1,145 @@
+{% extends 'admin/base.html' %}
+{# templates/admin/dashboard.html —— 仪表板：状态卡 + KPI + 票房柱状图 + 影片排行 + 今日场次 #}
+
+{% block title %}仪表板 · 光影影城后台{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div class="admin-header-left">
+    <span class="admin-header-icon"><i class="bi bi-speedometer2"></i></span>
+    <div>
+      <h1>仪表板</h1>
+      <p class="sub">今日票房与运营概览 · {{ d.today }}</p>
+    </div>
+  </div>
+  <div class="admin-header-actions">
+    <a class="btn-outline-custom" href="{{ url_for('admin.schedule') }}">
+      <i class="bi bi-calendar3-week"></i> 排片表
+    </a>
+    <a class="btn-primary-custom" href="{{ url_for('admin.orders') }}">
+      <i class="bi bi-receipt"></i> 订单管理
+    </a>
+  </div>
+</div>
+
+{# ---------------- 1. 状态卡：点击跳到对应筛选的订单列表 ---------------- #}
+<div class="stat-grid">
+  {% for key, label in [('UNPAID', '待支付'), ('PAID', '已支付'), ('USED', '已检票'),
+                        ('REFUNDED', '已退票'), ('CANCELLED', '已取消')] %}
+    <a class="stat-card c-{{ key }}" href="{{ url_for('admin.orders', status=key) }}">
+      <span class="num">{{ d.counts.get(key, 0) }}</span>
+      <span class="label">{{ label }}</span>
+    </a>
+  {% endfor %}
+</div>
+
+{# ---------------- 2. KPI 三张大卡 ---------------- #}
+<div class="kpi-grid">
+  <div class="kpi kpi-gold">
+    <div class="kpi-label">今日票房</div>
+    <div class="kpi-value">¥ {{ d.kpi.revenue_yuan }}</div>
+    <i class="bi bi-cash-coin kpi-icon"></i>
+  </div>
+  <div class="kpi kpi-green">
+    <div class="kpi-label">今日观影人次</div>
+    <div class="kpi-value">{{ d.kpi.people }} <small>人</small></div>
+    <i class="bi bi-people-fill kpi-icon"></i>
+  </div>
+  <div class="kpi kpi-blue">
+    <div class="kpi-label">今日平均上座率</div>
+    <div class="kpi-value">{{ d.kpi.avg_pct }}<small>%</small></div>
+    <i class="bi bi-bar-chart-fill kpi-icon"></i>
+  </div>
+</div>
+
+{# ---------------- 3. 近 7 天票房 + 影片排行 ---------------- #}
+<div class="panel-grid">
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title"><i class="bi bi-graph-up"></i> 近 7 天票房</h2>
+      <span class="panel-sub">单日最高 ¥ {{ d.max_revenue_yuan }}</span>
+    </div>
+
+    <div class="bar-chart">
+      {% for day in d.days %}
+        <div class="bar-col {{ 'today' if day.is_today }}" title="{{ day.date }} ¥ {{ day.revenue_yuan }}">
+          <span class="bar-value">{{ day.revenue_yuan|replace('.00', '') if day.revenue else '' }}</span>
+          <div class="bar-fill" style="height:{{ day.height }}%"></div>
+          <span class="bar-label">{{ day.label }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title"><i class="bi bi-trophy"></i> 影片票房排行</h2>
+      <span class="panel-sub">近 7 天</span>
+    </div>
+
+    {% if d.ranking %}
+      <div class="hbar">
+        {% for r in d.ranking %}
+          <div class="hbar-row">
+            <span class="hbar-title" title="{{ r.title }}">{{ r.title }}</span>
+            <div class="hbar-track"><div class="hbar-fill" style="width:{{ r.width }}%"></div></div>
+            <span class="hbar-value">¥{{ r.revenue_yuan|replace('.00', '') }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="bi bi-bar-chart"></i>
+        <p>近 7 天还没有已支付订单</p>
+      </div>
+    {% endif %}
+  </section>
+</div>
+
+{# ---------------- 4. 今日场次（上座率进度条） ---------------- #}
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title"><i class="bi bi-film"></i> 今日场次</h2>
+    <span class="panel-sub">共 {{ d.kpi.shows }} 场 · 已售 {{ d.kpi.people }} 张票</span>
+  </div>
+
+  {% if d.today_shows %}
+    <div class="table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>影片</th>
+            <th>影厅</th>
+            <th style="min-width:180px">上座率</th>
+            <th>已售 / 总座</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in d.today_shows %}
+            <tr>
+              <td class="num">{{ s.start_time }} - {{ s.end_time }}</td>
+              <td>{{ s.title }}</td>
+              <td>{{ s.hall_name }}</td>
+              <td>
+                <div class="progress {{ 'full' if s.pct >= 80 else ('warn' if s.pct >= 50 else '') }}">
+                  <span style="width:{{ s.pct }}%"></span>
+                </div>
+                <span class="progress-text">{{ s.pct }}%</span>
+              </td>
+              <td class="num">{{ s.sold }} / {{ s.capacity }}</td>
+              <td><span class="status-badge status-{{ s.status }}">{{ SHOWTIME_STATUS.get(s.status, s.status) }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <i class="bi bi-calendar-x"></i>
+      <p>今天还没有排片，去「排片表」安排场次吧</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

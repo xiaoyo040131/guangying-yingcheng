@@ -47,6 +47,19 @@ def get_hall(hall_id):
     return hall
 
 
+def _create_default_seats(hall_id, rows, cols):
+    """按行列给影厅生成全部座位（默认普通座）。须在事务内调用。
+
+    新建影厅、或改行/列数（尚无排片时）都要重建座位，
+    否则座位编辑页的网格与 seat 表对不上，保存会失败。
+    """
+    grid = []
+    for r in range(1, rows + 1):
+        for c in range(1, cols + 1):
+            grid.append((hall_id, r, c, 'NORMAL', None, 1))
+    seat_dao.insert_many(grid)
+
+
 def save_hall(data, hall_id=None):
     """新增 / 修改影厅。已有排片的影厅不允许改行数、列数（座位会对不上）。"""
     name = (data.get('name') or '').strip()
@@ -76,14 +89,22 @@ def save_hall(data, hall_id=None):
 
     if hall_id:
         hall = get_hall(hall_id)
-        if (rows != hall['row_count'] or cols != hall['col_count']) \
-                and showtime_dao.count_by_hall(hall_id) > 0:
-            raise BizError('该影厅已有 %d 个场次，不能修改行数/列数'
-                           % showtime_dao.count_by_hall(hall_id))
-        hall_dao.update(hall_id, payload)
+        resized = rows != hall['row_count'] or cols != hall['col_count']
+        show_count = showtime_dao.count_by_hall(hall_id)
+        if resized and show_count > 0:
+            raise BizError('该影厅已有 %d 个场次，不能修改行数/列数' % show_count)
+        with db.transaction():
+            hall_dao.update(hall_id, payload)
+            if resized:
+                # 没有排片才能改行列：重建座位，保证座位编辑网格与 seat 表一致
+                seat_dao.delete_by_hall(hall_id)
+                _create_default_seats(hall_id, rows, cols)
         return hall_id
 
-    return hall_dao.insert(payload)
+    with db.transaction():
+        new_id = hall_dao.insert(payload)
+        _create_default_seats(new_id, rows, cols)
+    return new_id
 
 
 def toggle_hall(hall_id, enabled):

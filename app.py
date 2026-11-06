@@ -118,9 +118,14 @@ def create_app():
     db.init_app(app)
 
     # ---------------- 蓝图 ----------------
-    # 前台蓝图本步注册；auth / admin 蓝图在第 5 步实现后再注册
     from views.front import front_bp
     app.register_blueprint(front_bp)
+
+    # 后台：auth 负责 /admin/login、/admin/logout；admin 的所有页面/接口都要登录
+    from views.auth import auth_bp
+    from views.admin import admin_bp
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
 
     # ---------------- 模板全局函数与过滤器 ----------------
     app.jinja_env.globals['img_url'] = img_url

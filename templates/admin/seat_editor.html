@@ -1,0 +1,96 @@
+{% extends 'admin/base.html' %}
+{# templates/admin/seat_editor.html —— 座位编辑：在网格上点选座位类型并保存 #}
+
+{% block title %}座位编辑 · {{ g.hall.name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+  .seat-editor-row .row-no {
+    width: 20px; flex: 0 0 20px; text-align: center;
+    font-size: .66rem; color: var(--text-muted); font-family: var(--font-mono);
+  }
+  .seat-editor .aisle-gap { flex: 0 0 16px; }
+  .brush-btn.active { border-color: var(--primary); color: var(--primary); background: rgba(190, 18, 60, .08); }
+  .seat-editor-toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
+    margin-bottom: 1rem;
+  }
+  .seat-editor-toolbar .sep { flex: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div class="admin-header-left">
+    <span class="admin-header-icon"><i class="bi bi-grid-3x3-gap"></i></span>
+    <div>
+      <h1>座位编辑 · {{ g.hall.name }}</h1>
+      <p class="sub">
+        {{ g.hall.row_count }} 行 × {{ g.hall.col_count }} 列 ·
+        {{ HALL_TYPE.get(g.hall.type, g.hall.type) }} ·
+        {{ (g.hall.aisle_after_col ~ ' 列后为过道') if g.hall.aisle_after_col else '无过道' }}
+      </p>
+    </div>
+  </div>
+  <div class="admin-header-actions">
+    <a class="btn-outline-custom" href="{{ url_for('admin.hall_edit', hall_id=g.hall.id) }}">
+      <i class="bi bi-pencil"></i> 影厅信息
+    </a>
+    <a class="btn-outline-custom" href="{{ url_for('admin.halls') }}">
+      <i class="bi bi-arrow-left"></i> 返回列表
+    </a>
+  </div>
+</div>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title"><i class="bi bi-hand-index-thumb"></i> 点选座位类型</h2>
+    <span class="panel-sub" id="seatChanges">未修改</span>
+  </div>
+
+  <div class="seat-editor-toolbar">
+    <span class="form-hint" style="margin:0">当前画笔：</span>
+    <button type="button" class="btn-xs brush-btn active" data-brush="NORMAL">普 通</button>
+    <button type="button" class="btn-xs brush-btn" data-brush="COUPLE">情 侣</button>
+    <button type="button" class="btn-xs brush-btn" data-brush="VIP">V I P</button>
+    <button type="button" class="btn-xs brush-btn" data-brush="NONE">无座位</button>
+    <span class="sep"></span>
+    <button type="button" class="btn-outline-custom" id="btnResetSeats"
+            style="padding:.42rem 1.1rem;font-size:.82rem">
+      <i class="bi bi-arrow-counterclockwise"></i> 放弃修改
+    </button>
+    <button type="button" class="btn-primary-custom" id="btnSaveSeats"
+            style="padding:.42rem 1.3rem;font-size:.84rem">
+      <i class="bi bi-check2"></i> 保存座位
+    </button>
+  </div>
+
+  <div class="seat-editor" id="seatEditor" data-hall-id="{{ g.hall.id }}">
+    {% for row in g.grid %}
+      <div class="seat-editor-row">
+        <span class="row-no">{{ row.row_no }}</span>
+
+        {% for cell in row.cells %}
+          {% set stype = cell.seat_type if cell.is_enabled else 'NONE' %}
+          {% set label = {'NORMAL': '普', 'COUPLE': '情', 'VIP': 'V', 'NONE': '空'}.get(stype, '空') %}
+          <button type="button" class="seat-cell t-{{ stype }}"
+                  data-seat-id="{{ cell.id or '' }}"
+                  data-type="{{ stype }}"
+                  data-orig="{{ stype }}"
+                  title="{{ row.row_no }} 排 {{ cell.col_no }} 座">{{ label }}</button>
+          {% if cell.is_aisle %}<span class="aisle-gap"></span>{% endif %}
+        {% endfor %}
+
+        <span class="row-no">{{ row.row_no }}</span>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="editor-legend">
+    <span><span class="cell-sample t-NORMAL" style="background:#E0E7FF;border:1px solid #C7D2FE"></span>普通座</span>
+    <span><span class="cell-sample t-COUPLE" style="background:#EDE9FE;border:1px solid #DDD6FE"></span>情侣座（保存后自动成对，落单改回普通座）</span>
+    <span><span class="cell-sample t-VIP" style="background:#FEF3C7;border:1px solid #FDE68A"></span>VIP 座</span>
+    <span><span class="cell-sample t-NONE" style="background:#F3F4F6;border:1px solid #E5E7EB"></span>无座位 / 停用</span>
+  </div>
+</section>
+{% endblock %}

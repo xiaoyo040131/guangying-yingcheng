@@ -167,11 +167,14 @@ def make_order(conn, show, seats, status, phone, name, created, deadline,
             ORDER_NOS.add(order_no)
             break
 
+    # 已支付 / 已检票 / 已退票的订单必须有 8 位取票码（R6：支付成功后生成）
+    code = gen_ticket_code(conn) if status in ('PAID', 'USED', 'REFUNDED') else None
+
     cur = ex(conn, """INSERT INTO ticket_order (order_no, show_id, phone, customer_name,
-                   seat_count, total_price, status, pay_deadline, paid_at, checkin_at,
+                   seat_count, total_price, ticket_code, status, pay_deadline, paid_at, checkin_at,
                    refund_at, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-              (order_no, show['id'], phone, name, len(seats), total, status,
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+              (order_no, show['id'], phone, name, len(seats), total, code, status,
                s(deadline), s(paid) if paid else None,
                s(checkin) if checkin else None, s(refund) if refund else None,
                s(created), s(now or datetime.now())))

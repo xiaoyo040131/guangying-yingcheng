@@ -1,0 +1,120 @@
+{% extends 'admin/base.html' %}
+{# templates/admin/checkin.html —— 检票：输入 8 位取票码 -> 显示订单 -> 确认检票 #}
+{% from '_macros.html' import status_badge, empty_state %}
+
+{% block title %}检票 · 光影影城后台{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div class="admin-header-left">
+    <span class="admin-header-icon"><i class="bi bi-qr-code-scan"></i></span>
+    <div>
+      <h1>检票</h1>
+      <p class="sub">开场前 60 分钟至开场后 30 分钟内可检票，已检票的订单不能重复检票</p>
+    </div>
+  </div>
+  <div class="admin-header-actions">
+    <a class="btn-outline-custom" href="{{ url_for('admin.orders', status='PAID') }}">
+      <i class="bi bi-receipt"></i> 已支付订单
+    </a>
+  </div>
+</div>
+
+<form class="filter-bar" method="get" action="{{ url_for('admin.checkin') }}">
+  <div class="field" style="flex:1 1 260px">
+    <label class="form-label-custom" for="code">取票码（8 位数字）</label>
+    <input class="form-control-custom" id="code" name="code" type="text"
+           value="{{ code }}" maxlength="8" inputmode="numeric" pattern="[0-9]*"
+           placeholder="例如 32817447" autofocus>
+  </div>
+  <button class="btn-primary-custom" type="submit" style="padding:.66rem 1.6rem;font-size:.86rem">
+    <i class="bi bi-search"></i> 查询订单
+  </button>
+</form>
+
+{% if detail %}
+  {% set o = detail.order %}
+  {% set flags = detail.flags %}
+
+  <div class="panel-grid">
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title"><i class="bi bi-ticket-perforated"></i> 订单信息</h2>
+        {{ status_badge(o.status) }}
+      </div>
+
+      <div class="table-wrap">
+        <table class="admin-table" style="min-width:auto">
+          <tbody>
+            <tr><th style="width:100px">订单号</th>
+              <td class="num">
+                <a href="{{ url_for('admin.order_detail', order_no=o.order_no) }}">{{ o.order_no }}</a>
+              </td></tr>
+            <tr><th>影片</th><td>{{ o.title }}</td></tr>
+            <tr><th>场次</th><td class="num">{{ o.show_date }} {{ o.start_time }} · {{ o.hall_name }}</td></tr>
+            <tr><th>座位</th><td>
+              {% for s in detail.seats %}
+                <span class="tag">{{ s.row_no }}排{{ s.col_no }}座</span>
+              {% endfor %}
+            </td></tr>
+            <tr><th>观众</th><td>{{ o.customer_name }} · {{ o.phone|mask_phone }}</td></tr>
+            <tr><th>金额</th><td class="num">¥ {{ o.total_price|yuan }}</td></tr>
+            <tr><th>取票码</th>
+              <td class="num" style="font-family:var(--font-mono);font-size:1.05rem;letter-spacing:.16em">
+                {{ o.ticket_code }}
+              </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title"><i class="bi bi-check2-circle"></i> 检票操作</h2>
+      </div>
+
+      {% if flags.can_checkin %}
+        <p class="notice-line notice-ok" style="margin-top:0">
+          <i class="bi bi-unlock"></i> 当前在检票时间内，确认后订单状态将变为「已检票」。
+        </p>
+        <button type="button" class="btn-primary-custom" style="width:100%"
+                data-checkin-code="{{ o.ticket_code }}"
+                data-confirm="确认该订单检票入场吗？检票后不能撤销。">
+          <i class="bi bi-check2"></i> 确认检票
+        </button>
+      {% elif o.status == 'USED' %}
+        <p class="notice-line" style="margin-top:0">
+          <i class="bi bi-exclamation-triangle"></i>
+          该订单已于 {{ o.checkin_at }} 检票，不能重复检票。
+        </p>
+      {% elif o.status == 'PAID' %}
+        <p class="notice-line" style="margin-top:0">
+          <i class="bi bi-clock"></i>
+          当前不在检票时间内（开场前 60 分钟至开场后 30 分钟）。本场开场：
+          {{ o.show_date }} {{ o.start_time }}。
+        </p>
+      {% else %}
+        <p class="notice-line" style="margin-top:0">
+          <i class="bi bi-exclamation-triangle"></i>
+          订单当前为「{{ ORDER_STATUS.get(o.status, o.status) }}」，只有已支付订单可以检票。
+        </p>
+      {% endif %}
+
+      <p class="form-hint" style="margin-top:1rem">
+        如需退票，请到
+        <a href="{{ url_for('admin.order_detail', order_no=o.order_no) }}">订单详情</a>
+        页操作（开场前 2 小时以上）。
+      </p>
+    </section>
+  </div>
+{% elif code %}
+  {{ empty_state('没有找到这个取票码对应的订单，请核对后重试', 'bi-search') }}
+{% else %}
+  <section class="panel">
+    <div class="empty-state">
+      <i class="bi bi-upc-scan"></i>
+      <p>输入观众出示的 8 位取票码，查询后确认检票</p>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

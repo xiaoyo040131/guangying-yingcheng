@@ -1,0 +1,76 @@
+{# templates/admin/login.html —— 后台登录页（独立页面，不继承后台母版） #}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>后台登录 · 光影影城</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link rel="icon" type="image/png" href="{{ img_url('favicon') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-page">
+
+  {# flash 提示：登录失败时显示"账号或密码不正确" #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-wrap">
+        {% for category, message in messages %}
+          <div class="flash-item flash-{{ category }}" role="alert">
+            {% if category == 'success' %}
+              <i class="bi bi-check-circle-fill"></i>
+            {% else %}
+              <i class="bi bi-exclamation-octagon-fill"></i>
+            {% endif %}
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="login-card">
+    <div class="brand">
+      <span class="brand-icon"><i class="bi {{ site.icon }}"></i></span>
+      <span class="brand-text">
+        <span class="brand-name">{{ site.name }}</span>
+        <span class="brand-en">{{ site.en }}</span>
+      </span>
+    </div>
+
+    <h1 class="login-title">后台管理登录</h1>
+    <p class="login-sub">排片 · 售票 · 检票 · 票房</p>
+
+    <form method="post" action="{{ url_for('auth.login') }}" autocomplete="off">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+
+      <div class="mb-3">
+        <label class="form-label-custom" for="username">管理员账号</label>
+        <input class="form-control-custom" id="username" name="username" type="text"
+               value="{{ username }}" maxlength="30" required autofocus
+               placeholder="请输入账号">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label-custom" for="password">登录密码</label>
+        <input class="form-control-custom" id="password" name="password" type="password"
+               maxlength="60" required placeholder="请输入密码">
+      </div>
+
+      <button class="btn-primary-custom" type="submit">
+        <i class="bi bi-box-arrow-in-right"></i> 登录后台
+      </button>
+    </form>
+
+    <a class="login-back" href="{{ url_for('front.index') }}">
+      <i class="bi bi-arrow-left"></i> 返回前台首页
+    </a>
+  </div>
+
+  <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

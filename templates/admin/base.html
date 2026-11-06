@@ -1,0 +1,115 @@
+{# templates/admin/base.html —— 后台母版：左侧边栏 + 右侧内容区 #}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}后台管理 · 光影影城{% endblock %}</title>
+
+  {# CSRF 令牌：admin.js 里所有 fetch 请求从这里读取，放进 X-CSRF-Token 头 #}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
+  <link rel="icon" type="image/png" href="{{ img_url('favicon') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="admin-body">
+
+<div class="admin-shell">
+
+  {# ---------------- 侧边栏：运营 / 基础数据 / 其他 ---------------- #}
+  <aside class="admin-sidebar">
+    <a class="sidebar-brand" href="{{ url_for('admin.dashboard') }}">
+      <span class="brand-icon"><i class="bi bi-film"></i></span>
+      <span>
+        <span class="sidebar-brand-name">{{ site.name }}</span>
+        <span class="sidebar-brand-sub">Lumiere Admin</span>
+      </span>
+    </a>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-group-title">运营</div>
+      <a class="sidebar-link {{ 'active' if active == 'dashboard' }}"
+         href="{{ url_for('admin.dashboard') }}">
+        <i class="bi bi-speedometer2"></i><span>仪表板</span>
+      </a>
+      <a class="sidebar-link {{ 'active' if active == 'schedule' }}"
+         href="{{ url_for('admin.schedule') }}">
+        <i class="bi bi-calendar3-week"></i><span>排片表</span>
+      </a>
+      <a class="sidebar-link {{ 'active' if active == 'orders' }}"
+         href="{{ url_for('admin.orders') }}">
+        <i class="bi bi-receipt"></i><span>订单管理</span>
+      </a>
+      <a class="sidebar-link {{ 'active' if active == 'checkin' }}"
+         href="{{ url_for('admin.checkin') }}">
+        <i class="bi bi-qr-code-scan"></i><span>检票</span>
+      </a>
+
+      <div class="sidebar-group-title">基础数据</div>
+      <a class="sidebar-link {{ 'active' if active == 'movies' }}"
+         href="{{ url_for('admin.movies') }}">
+        <i class="bi bi-camera-reels"></i><span>影片管理</span>
+      </a>
+      <a class="sidebar-link {{ 'active' if active == 'halls' }}"
+         href="{{ url_for('admin.halls') }}">
+        <i class="bi bi-building"></i><span>影厅管理</span>
+      </a>
+
+      <div class="sidebar-group-title">其他</div>
+      <a class="sidebar-link" href="{{ url_for('front.index') }}" target="_blank" rel="noopener">
+        <i class="bi bi-box-arrow-up-right"></i><span>返回前台</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="admin-name">
+        <i class="bi bi-person-badge"></i>
+        {{ session.get('admin_username', 'admin') }}
+      </div>
+      {# 退出必须用 POST（项目规范要求），表单带 _csrf #}
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="sidebar-logout" type="submit">
+          <i class="bi bi-box-arrow-right"></i> 退出登录
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  {# ---------------- 右侧内容区 ---------------- #}
+  <main class="admin-main">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-wrap" id="flashWrap">
+          {% for category, message in messages %}
+            <div class="flash-item flash-{{ category }}" role="alert">
+              {% if category == 'success' %}
+                <i class="bi bi-check-circle-fill"></i>
+              {% elif category in ('error', 'danger') %}
+                <i class="bi bi-exclamation-octagon-fill"></i>
+              {% elif category == 'warning' %}
+                <i class="bi bi-exclamation-triangle-fill"></i>
+              {% else %}
+                <i class="bi bi-info-circle-fill"></i>
+              {% endif %}
+              <span>{{ message }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+</div>
+
+<script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

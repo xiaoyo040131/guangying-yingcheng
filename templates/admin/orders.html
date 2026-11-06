@@ -1,0 +1,114 @@
+{% extends 'admin/base.html' %}
+{# templates/admin/orders.html —— 订单管理：状态标签页 + 搜索 + 日期筛选 + 分页 #}
+{% from '_macros.html' import pagination, empty_state %}
+
+{% block title %}订单管理 · 光影影城后台{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div class="admin-header-left">
+    <span class="admin-header-icon"><i class="bi bi-receipt"></i></span>
+    <div>
+      <h1>订单管理</h1>
+      <p class="sub">共 {{ r.total }} 笔订单（当前筛选）</p>
+    </div>
+  </div>
+  <div class="admin-header-actions">
+    <a class="btn-outline-custom" href="{{ url_for('admin.checkin') }}">
+      <i class="bi bi-qr-code-scan"></i> 去检票
+    </a>
+  </div>
+</div>
+
+{# 状态标签页：保留搜索与日期条件 #}
+<div class="tabs">
+  {% for t in tabs %}
+    <a class="tab {{ 'active' if (r.status or '') == t.key }}"
+       href="{{ url_for('admin.orders', status=t.key, keyword=r.keyword, date=r.date) }}">
+      {{ t.label }} <span style="opacity:.6">{{ t.count }}</span>
+    </a>
+  {% endfor %}
+</div>
+
+{# 搜索 + 日期筛选 #}
+<form class="filter-bar" method="get" action="{{ url_for('admin.orders') }}">
+  <input type="hidden" name="status" value="{{ r.status or '' }}">
+  <div class="field">
+    <label class="form-label-custom" for="keyword">关键词</label>
+    <input class="form-control-custom" id="keyword" name="keyword" type="text"
+           value="{{ r.keyword }}" maxlength="30" placeholder="订单号 / 手机号 / 取票码">
+  </div>
+  <div class="field">
+    <label class="form-label-custom" for="date">场次日期</label>
+    <input class="form-control-custom" id="date" name="date" type="date" value="{{ r.date }}">
+  </div>
+  <button class="btn-primary-custom" type="submit" style="padding:.66rem 1.5rem;font-size:.86rem">
+    <i class="bi bi-search"></i> 搜索
+  </button>
+  <a class="btn-outline-custom" href="{{ url_for('admin.orders', status=r.status or '') }}"
+     style="padding:.66rem 1.5rem;font-size:.86rem">重置</a>
+</form>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title"><i class="bi bi-list-ul"></i> 订单列表</h2>
+    <span class="panel-sub">第 {{ r.page }} / {{ r.pages }} 页</span>
+  </div>
+
+  {% if r.orders %}
+    <div class="table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>订单号</th>
+            <th>影片 / 场次</th>
+            <th>座位</th>
+            <th>观众</th>
+            <th>金额</th>
+            <th>状态</th>
+            <th>下单时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in r.orders %}
+            <tr>
+              <td class="num">
+                <a href="{{ url_for('admin.order_detail', order_no=o.order_no) }}">{{ o.order_no }}</a>
+                {% if o.ticket_code %}
+                  <div style="font-size:.7rem;color:var(--text-muted)">码 {{ o.ticket_code }}</div>
+                {% endif %}
+              </td>
+              <td>
+                {{ o.title }}
+                <div style="font-size:.72rem;color:var(--text-muted)">
+                  {{ o.show_date }} {{ o.start_time }} · {{ o.hall_name }}
+                </div>
+              </td>
+              <td class="num">{{ o.seat_count }} 张</td>
+              <td>
+                {{ o.customer_name }}
+                <div style="font-size:.72rem;color:var(--text-muted)">{{ o.phone|mask_phone }}</div>
+              </td>
+              <td class="num">¥ {{ o.total_price|yuan }}</td>
+              <td><span class="status-badge status-{{ o.status }}">{{ ORDER_STATUS.get(o.status, o.status) }}</span></td>
+              <td class="num" style="font-size:.76rem">{{ o.created_at }}</td>
+              <td>
+                <div class="actions">
+                  <a class="btn-xs" href="{{ url_for('admin.order_detail', order_no=o.order_no) }}">
+                    <i class="bi bi-eye"></i> 详情
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {{ pagination(r.page, r.pages, 'admin.orders', args) }}
+  {% else %}
+    {{ empty_state('没有符合条件的订单，换个筛选条件试试', 'bi-receipt-cutoff') }}
+  {% endif %}
+</section>
+{% endblock %}

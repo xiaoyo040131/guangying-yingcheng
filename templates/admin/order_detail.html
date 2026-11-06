@@ -1,0 +1,149 @@
+{% extends 'admin/base.html' %}
+{# templates/admin/order_detail.html —— 订单详情：座位、明细、操作（检票 / 退票）、轨迹 #}
+{% from '_macros.html' import status_badge %}
+
+{% block title %}订单 {{ detail.order.order_no }} · 光影影城后台{% endblock %}
+
+{% block content %}
+{% set o = detail.order %}
+{% set flags = detail.flags %}
+
+<div class="admin-header">
+  <div class="admin-header-left">
+    <span class="admin-header-icon"><i class="bi bi-receipt-cutoff"></i></span>
+    <div>
+      <h1>订单详情</h1>
+      <p class="sub">{{ o.order_no }} · {{ o.created_at }} 下单</p>
+    </div>
+  </div>
+  <div class="admin-header-actions">
+    <a class="btn-outline-custom" href="{{ url_for('admin.orders') }}">
+      <i class="bi bi-arrow-left"></i> 返回列表
+    </a>
+    {% if flags.can_checkin %}
+      <button type="button" class="btn-primary-custom"
+              data-order-action="checkin" data-order-no="{{ o.order_no }}"
+              data-confirm="确认为该订单检票入场吗？检票后不能撤销。">
+        <i class="bi bi-check2-circle"></i> 检票
+      </button>
+    {% endif %}
+    {% if flags.can_refund %}
+      <button type="button" class="btn-outline-custom"
+              data-order-action="refund" data-order-no="{{ o.order_no }}"
+              data-confirm="确认给该订单退票吗？退票后座位会立即释放。">
+        <i class="bi bi-arrow-counterclockwise"></i> 退票
+      </button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel-grid">
+  {# ---------------- 订单信息 ---------------- #}
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title"><i class="bi bi-info-circle"></i> 订单信息</h2>
+      {{ status_badge(o.status) }}
+    </div>
+
+    <div class="table-wrap">
+      <table class="admin-table" style="min-width:auto">
+        <tbody>
+          <tr><th style="width:110px">影片</th><td>{{ o.title }}</td></tr>
+          <tr><th>场次</th><td class="num">{{ o.show_date }} {{ o.start_time }} · {{ o.hall_name }}</td></tr>
+          <tr><th>座位</th><td>
+            {% for s in detail.seats %}
+              <span class="tag">{{ s.row_no }}排{{ s.col_no }}座</span>
+            {% endfor %}
+          </td></tr>
+          <tr><th>数量 / 金额</th>
+            <td class="num">{{ o.seat_count }} 张 · ¥ {{ o.total_price|yuan }}</td></tr>
+          <tr><th>取票码</th>
+            <td class="num" style="font-family:var(--font-mono);letter-spacing:.1em">
+              {{ o.ticket_code or '—' }}
+            </td></tr>
+          <tr><th>观众</th><td>{{ o.customer_name }} · {{ o.phone }}</td></tr>
+          <tr><th>支付截止</th><td class="num">{{ o.pay_deadline }}</td></tr>
+          <tr><th>支付时间</th><td class="num">{{ o.paid_at or '—' }}</td></tr>
+          <tr><th>检票时间</th><td class="num">{{ o.checkin_at or '—' }}</td></tr>
+          <tr><th>退票时间</th><td class="num">{{ o.refund_at or '—' }}</td></tr>
+          <tr><th>更新时间</th><td class="num">{{ o.updated_at }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    {% if not flags.can_checkin and not flags.can_refund %}
+      <p class="notice-line" style="margin:1rem 0 0">
+        <i class="bi bi-info-circle"></i>
+        当前状态（{{ ORDER_STATUS.get(o.status, o.status) }}）下没有可执行的订单操作。
+        检票需在开场前 60 分钟至开场后 30 分钟内；退票需在开场前 2 小时以上。
+      </p>
+    {% endif %}
+  </section>
+
+  {# ---------------- 座位与价格明细 ---------------- #}
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title"><i class="bi bi-grid-3x3-gap"></i> 座位明细</h2>
+      <span class="panel-sub">基础票价 ¥ {{ o.base_price|yuan }}</span>
+    </div>
+
+    <div class="table-wrap">
+      <table class="admin-table" style="min-width:auto">
+        <thead>
+          <tr><th>座位</th><th>类型</th><th>票价</th></tr>
+        </thead>
+        <tbody>
+          {% for s in detail.seats %}
+            <tr>
+              <td class="num">{{ s.row_no }} 排 {{ s.col_no }} 座</td>
+              <td>{{ SEAT_TYPE.get(s.seat_type, s.seat_type) }}</td>
+              <td class="num">¥ {{ s.price|yuan }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="2">合计</th>
+            <th class="num">¥ {{ o.total_price|yuan }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+</div>
+
+{# ---------------- 状态轨迹 ---------------- #}
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title"><i class="bi bi-clock-history"></i> 状态轨迹</h2>
+    <span class="panel-sub">共 {{ detail.logs|length }} 条</span>
+  </div>
+
+  {% if detail.logs %}
+    <div class="table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr><th>时间</th><th>动作</th><th>状态变化</th><th>操作人</th><th>备注</th></tr>
+        </thead>
+        <tbody>
+          {% for log in detail.logs %}
+            <tr>
+              <td class="num" style="font-size:.76rem">{{ log.created_at }}</td>
+              <td>{{ action_text.get(log.action, log.action) }}</td>
+              <td class="num" style="font-size:.76rem">
+                {{ ORDER_STATUS.get(log.from_status, log.from_status or '—') }}
+                <i class="bi bi-arrow-right"></i>
+                {{ ORDER_STATUS.get(log.to_status, log.to_status) }}
+              </td>
+              <td>{{ log.operator }}</td>
+              <td style="font-size:.78rem">{{ log.remark }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state"><i class="bi bi-clock"></i><p>暂无轨迹记录</p></div>
+  {% endif %}
+</section>
+{% endblock %}

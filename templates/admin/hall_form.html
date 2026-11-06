@@ -1,0 +1,97 @@
+{% extends 'admin/base.html' %}
+{# templates/admin/hall_form.html —— 新增 / 编辑影厅 #}
+
+{% block title %}{{ '编辑影厅' if hall else '新增影厅' }} · 光影影城后台{% endblock %}
+
+{% block content %}
+{% set cur_type = form.get('type') or (hall.type if hall else 'NORMAL') %}
+{% set cur_rows = form.get('row_count') or (hall.row_count if hall else 10) %}
+{% set cur_cols = form.get('col_count') or (hall.col_count if hall else 14) %}
+{% set cur_aisle = form.get('aisle_after_col') if form.get('aisle_after_col') is not none
+                   else (hall.aisle_after_col if hall else 7) %}
+{# 表单提交过（name 一定存在）时，缺失的 is_enabled 就是"未勾选"，不能回落到数据库值 #}
+{% set submitted = form.get('name') is not none %}
+{% set cur_enabled = form.get('is_enabled') if submitted else (hall.is_enabled if hall else 1) %}
+
+<div class="admin-header">
+  <div class="admin-header-left">
+    <span class="admin-header-icon"><i class="bi bi-door-open"></i></span>
+    <div>
+      <h1>{{ '编辑影厅' if hall else '新增影厅' }}</h1>
+      <p class="sub">{{ hall.name if hall else '保存后会自动生成座位，请继续在座位编辑页调整类型' }}</p>
+    </div>
+  </div>
+  <div class="admin-header-actions">
+    <a class="btn-outline-custom" href="{{ url_for('admin.halls') }}">
+      <i class="bi bi-arrow-left"></i> 返回列表
+    </a>
+  </div>
+</div>
+
+<section class="panel">
+  <form method="post"
+        action="{{ url_for('admin.hall_edit', hall_id=hall.id) if hall else url_for('admin.hall_new') }}"
+        autocomplete="off">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+    <div class="form-grid two">
+      <div>
+        <label class="form-label-custom" for="name">影厅名称</label>
+        <input class="form-control-custom" id="name" name="name" type="text" maxlength="20" required
+               value="{{ form.get('name') or (hall.name if hall else '') }}"
+               placeholder="如：5号厅">
+        <p class="form-hint">名称不能重复，2~20 个字符</p>
+      </div>
+      <div>
+        <label class="form-label-custom" for="type">影厅类型</label>
+        <select class="form-control-custom" id="type" name="type">
+          {% for key, label in HALL_TYPE.items() %}
+            <option value="{{ key }}" {{ 'selected' if cur_type == key }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-grid three" style="margin-top:1.2rem">
+      <div>
+        <label class="form-label-custom" for="row_count">行数</label>
+        <input class="form-control-custom" id="row_count" name="row_count" type="number"
+               min="1" max="26" step="1" required value="{{ cur_rows }}">
+      </div>
+      <div>
+        <label class="form-label-custom" for="col_count">列数</label>
+        <input class="form-control-custom" id="col_count" name="col_count" type="number"
+               min="1" max="30" step="1" required value="{{ cur_cols }}">
+      </div>
+      <div>
+        <label class="form-label-custom" for="aisle_after_col">过道（第几列后）</label>
+        <input class="form-control-custom" id="aisle_after_col" name="aisle_after_col"
+               type="number" min="1" max="29" step="1" value="{{ cur_aisle or '' }}"
+               placeholder="留空表示无过道">
+      </div>
+    </div>
+
+    <div style="margin-top:1.2rem">
+      <label class="form-label-custom" style="display:flex;align-items:center;gap:.5rem">
+        <input type="checkbox" name="is_enabled" value="1" {{ 'checked' if cur_enabled }}>
+        启用该影厅（停用后不出现在前台与排片下拉中）
+      </label>
+    </div>
+
+    {% if hall and hall.id %}
+      <p class="notice-line" style="margin-top:1.4rem">
+        <i class="bi bi-info-circle"></i>
+        该影厅已有 {{ hall.row_count }} × {{ hall.col_count }} 的座位布局。
+        若已有排片，系统会拒绝修改行数 / 列数，避免已售座位对不上。
+      </p>
+    {% endif %}
+
+    <div class="inline-form" style="margin-top:1.4rem">
+      <button class="btn-primary-custom" type="submit">
+        <i class="bi bi-check2"></i> {{ '保存修改' if hall else '创建影厅' }}
+      </button>
+      <a class="btn-outline-custom" href="{{ url_for('admin.halls') }}">取消</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

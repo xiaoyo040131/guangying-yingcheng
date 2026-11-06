@@ -13,3 +13,6 @@ __pycache__/
 
 # 工作区临时数据
 .workbuddy/
+
+# 误创建的空文件（命令重定向产物）
+/python

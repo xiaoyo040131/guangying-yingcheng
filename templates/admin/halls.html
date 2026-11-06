@@ -1,0 +1,88 @@
+{% extends 'admin/base.html' %}
+{# templates/admin/halls.html —— 影厅管理列表 #}
+{% from '_macros.html' import empty_state %}
+
+{% block title %}影厅管理 · 光影影城后台{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <div class="admin-header-left">
+    <span class="admin-header-icon"><i class="bi bi-building"></i></span>
+    <div>
+      <h1>影厅管理</h1>
+      <p class="sub">共 {{ halls|length }} 个影厅 · 停用的影厅不出现在前台与排片下拉中</p>
+    </div>
+  </div>
+  <div class="admin-header-actions">
+    <a class="btn-primary-custom" href="{{ url_for('admin.hall_new') }}">
+      <i class="bi bi-plus-lg"></i> 新增影厅
+    </a>
+  </div>
+</div>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2 class="panel-title"><i class="bi bi-door-open"></i> 影厅列表</h2>
+    <span class="panel-sub">已有排片的影厅不能修改行数 / 列数</span>
+  </div>
+
+  {% if halls %}
+    <div class="table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>影厅</th>
+            <th>类型</th>
+            <th>布局</th>
+            <th>过道</th>
+            <th>座位（启用 / 总）</th>
+            <th>场次</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in halls %}
+            {% set h = item.hall %}
+            <tr>
+              <td style="font-weight:600">{{ h.name }}</td>
+              <td>{{ HALL_TYPE.get(h.type, h.type) }}</td>
+              <td class="num">{{ h.row_count }} 行 × {{ h.col_count }} 列</td>
+              <td class="num">{{ (h.aisle_after_col ~ ' 列后') if h.aisle_after_col else '无' }}</td>
+              <td class="num">{{ item.seat_enabled }} / {{ item.seat_total }}</td>
+              <td class="num">{{ item.show_count }}</td>
+              <td>
+                {% if h.is_enabled %}
+                  <span class="tag">启用</span>
+                {% else %}
+                  <span class="tag" style="color:#991B1B;background:#FEE2E2">停用</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="actions">
+                  <a class="btn-xs" href="{{ url_for('admin.seat_editor', hall_id=h.id) }}">
+                    <i class="bi bi-grid-3x3-gap"></i> 座位
+                  </a>
+                  <a class="btn-xs" href="{{ url_for('admin.hall_edit', hall_id=h.id) }}">
+                    <i class="bi bi-pencil"></i> 编辑
+                  </a>
+                  <button type="button" class="btn-xs {{ '' if h.is_enabled else 'danger' }}"
+                          data-hall-toggle="{{ h.id }}"
+                          data-enabled="{{ 0 if h.is_enabled else 1 }}"
+                          data-confirm="{{ '停用后该影厅不再出现在前台和排片下拉中，确认停用吗？'
+                                          if h.is_enabled else '确认重新启用该影厅吗？' }}">
+                    <i class="bi {{ 'bi-pause-circle' if h.is_enabled else 'bi-play-circle' }}"></i>
+                    {{ '停用' if h.is_enabled else '启用' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state('还没有影厅，点右上角「新增影厅」创建', 'bi-building') }}
+  {% endif %}
+</section>
+{% endblock %}

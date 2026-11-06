@@ -125,6 +125,7 @@ def count_by_status(show_date):
 
 
 def count_by_hall(hall_id):
-    """某影厅的场次总数（改行/列数前检查是否已有排片）。"""
-    return query_one("SELECT COUNT(*) AS c FROM showtime WHERE hall_id = ?",
+    """某影厅的有效场次数（已取消的不算：改行/列数前用它判断是否已有排片）。"""
+    return query_one("SELECT COUNT(*) AS c FROM showtime "
+                     "WHERE hall_id = ? AND status != 'CANCELLED'",
                      (hall_id,))['c']
